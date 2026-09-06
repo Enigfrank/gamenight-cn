@@ -23,7 +23,7 @@ const TicTacToe = (() => {
       App.socket.emit('game:back_to_lobby');
     });
     document.getElementById('ttt-leave').addEventListener('click', () => {
-      showConfirm('Exit the game? You will leave the room.', () => location.reload(), { confirmText: 'Exit', danger: true });
+      showConfirm('确定要退出吗？退出后会离开房间。', () => location.reload(), { confirmText: '退出', danger: true });
     });
 
     App.socket.on('ttt:tournament_state', onTournamentState);
@@ -57,7 +57,7 @@ const TicTacToe = (() => {
     // Show waiting message if no active match
     const hasActive = data.currentPlayerIds.length > 0;
     if (!hasActive) {
-      document.getElementById('ttt-status').textContent = '⏳ Tournament starting…';
+      document.getElementById('ttt-status').textContent = '⏳ 锦标赛马上开始……';
       document.getElementById('ttt-result').classList.add('hidden');
     }
 
@@ -65,7 +65,7 @@ const TicTacToe = (() => {
     const p2 = data.allPlayers[data.currentPlayerIds[1]];
     const roundLabel = getTournamentRoundLabel(data.currentRound, data.rounds.length);
     document.getElementById('ttt-match-info').textContent =
-      hasActive ? `${roundLabel}: ${p1?.name ?? '?'} vs ${p2?.name ?? '?'}` : 'Setting up bracket…';
+      hasActive ? `${roundLabel}：${p1?.name ?? '?'} vs ${p2?.name ?? '?'}` : '正在排对阵表……';
 
     renderBracket(data.rounds, data.allPlayers, data.currentRound, data.currentMatch);
 
@@ -80,25 +80,25 @@ const TicTacToe = (() => {
     document.getElementById('ttt-result').classList.remove('hidden');
     const isMe = winner?.id === App.myId;
     document.getElementById('ttt-result-text').innerHTML =
-      `🏆 Tournament Champion: <strong>${isMe ? 'You!' : (winner?.name || '?')}</strong>`;
+      `🏆 锦标赛冠军：<strong>${isMe ? '就是你！' : (winner?.name || '?')}</strong>`;
     document.getElementById('ttt-host-only').style.display = App.isHost ? 'flex' : 'none';
     document.getElementById('btn-ttt-again').classList.remove('hidden');
-    document.getElementById('btn-ttt-again').textContent = 'New Tournament';
+    document.getElementById('btn-ttt-again').textContent = '再来一届';
     document.getElementById('btn-ttt-new-match').classList.add('hidden');
 
     renderBracket(rounds, allPlayers, -1, -1);
-    document.getElementById('ttt-match-info').textContent = '🏁 Tournament complete!';
+    document.getElementById('ttt-match-info').textContent = '🏁 锦标赛圆满结束！';
   }
 
   function onPlayerLeft({ name }) {
-    toast(`${name} left the game.`);
+    toast(`${name} 退出了游戏。`);
   }
 
   function getTournamentRoundLabel(roundIdx, totalRounds) {
-    if (roundIdx < 0) return 'Final';
-    if (roundIdx === totalRounds - 1) return 'Final';
-    if (roundIdx === totalRounds - 2 && totalRounds > 2) return 'Semifinal';
-    return `Round ${roundIdx + 1}`;
+    if (roundIdx < 0) return '决赛';
+    if (roundIdx === totalRounds - 1) return '决赛';
+    if (roundIdx === totalRounds - 2 && totalRounds > 2) return '半决赛';
+    return `第 ${roundIdx + 1} 轮`;
   }
 
   function renderBracket(rounds, allPlayers, currentRound, currentMatch) {
@@ -123,17 +123,17 @@ const TicTacToe = (() => {
           const slot = document.createElement('div');
           const isWinner = match.winner === playerId;
           slot.className = 'bm-player' + (isWinner ? ' winner' : '') + (!playerId ? ' tbd' : '');
-          slot.textContent = playerId ? (allPlayers[playerId]?.name || '?') : 'TBD';
+          slot.textContent = playerId ? (allPlayers[playerId]?.name || '?') : '待定';
           if (playerId === App.myId) {
             const tag = document.createElement('span');
-            tag.className = 'bm-you'; tag.textContent = ' (you)';
+            tag.className = 'bm-you'; tag.textContent = ' (你)';
             slot.appendChild(tag);
           }
           return slot;
         };
 
         const vs = document.createElement('div');
-        vs.className = 'bm-vs'; vs.textContent = match.isBye ? '— bye —' : 'vs';
+        vs.className = 'bm-vs'; vs.textContent = match.isBye ? '— 轮空 —' : 'vs';
 
         col.appendChild(card);
         card.appendChild(makeSlot(match.p1));
@@ -170,18 +170,20 @@ const TicTacToe = (() => {
     if (!App.isHost || playerId === App.myId) return;
     const btn = document.createElement('button');
     btn.className = 'btn-host-ctrl btn-kick-ctrl ttt-kick-btn';
-    btn.title = `Kick ${playerName}`;
+    btn.title = `踢出 ${playerName}`;
     btn.textContent = '🚫';
     btn.addEventListener('click', () => {
-      showConfirm(`Kick ${playerName}?`, () => App.socket.emit('room:kick', { playerId }), { confirmText: 'Kick', danger: true });
+      showConfirm(`把 ${playerName} 踢出房间？`, () => App.socket.emit('room:kick', { playerId }), { confirmText: '踢出', danger: true });
     });
     card.appendChild(btn);
   }
 
+  const bestOfLabel = n => ({ 3: '三局两胜', 5: '五局三胜', 7: '七局四胜' })[n] || '自由对战';
+
   function renderScores() {
     const { players, scores, bestOf } = state;
-    document.getElementById('ttt-name-X').textContent = players.X.name + (players.X.id === App.myId ? ' (You)' : '');
-    document.getElementById('ttt-name-O').textContent = players.O.name + (players.O.id === App.myId ? ' (You)' : '');
+    document.getElementById('ttt-name-X').textContent = players.X.name + (players.X.id === App.myId ? ' (你)' : '');
+    document.getElementById('ttt-name-O').textContent = players.O.name + (players.O.id === App.myId ? ' (你)' : '');
     document.getElementById('ttt-pts-X').textContent = scores[players.X.id] || 0;
     document.getElementById('ttt-pts-O').textContent = scores[players.O.id] || 0;
     document.getElementById('ttt-score-X').classList.toggle('active-turn', state.currentTurn === players.X.id && !state.winner);
@@ -190,7 +192,7 @@ const TicTacToe = (() => {
     renderScoreKickBtn('ttt-score-O', players.O.id, players.O.name);
     const matchLabel = document.getElementById('ttt-match-label');
     if (matchLabel) {
-      matchLabel.textContent = bestOf > 0 ? `Best of ${bestOf}` : 'Free Play';
+      matchLabel.textContent = bestOf > 0 ? bestOfLabel(bestOf) : '自由对战';
       matchLabel.classList.toggle('hidden', false);
     }
   }
@@ -198,8 +200,8 @@ const TicTacToe = (() => {
   function renderScoresTournament() {
     if (!state.players) return;
     const { players } = state;
-    document.getElementById('ttt-name-X').textContent = players.X.name + (players.X.id === App.myId ? ' (You)' : '');
-    document.getElementById('ttt-name-O').textContent = players.O.name + (players.O.id === App.myId ? ' (You)' : '');
+    document.getElementById('ttt-name-X').textContent = players.X.name + (players.X.id === App.myId ? ' (你)' : '');
+    document.getElementById('ttt-name-O').textContent = players.O.name + (players.O.id === App.myId ? ' (你)' : '');
     document.getElementById('ttt-pts-X').textContent = '—';
     document.getElementById('ttt-pts-O').textContent = '—';
     document.getElementById('ttt-score-X').classList.toggle('active-turn', state.currentTurn === players.X.id && !state.winner);
@@ -217,7 +219,7 @@ const TicTacToe = (() => {
       if (state.winner) {
         if (state.winner === 'draw') {
           result.classList.remove('hidden');
-          document.getElementById('ttt-result-text').textContent = "Draw! 🤝 Replaying…";
+          document.getElementById('ttt-result-text').textContent = "平局！🤝 马上重赛……";
           document.getElementById('ttt-host-only').style.display = 'none';
           document.getElementById('btn-ttt-again').classList.add('hidden');
           document.getElementById('btn-ttt-new-match').classList.add('hidden');
@@ -225,7 +227,7 @@ const TicTacToe = (() => {
           const winnerPlayer = state.players[state.winnerSymbol];
           result.classList.remove('hidden');
           document.getElementById('ttt-result-text').textContent =
-            winnerPlayer.id === App.myId ? 'You win this match! ✅' : `${winnerPlayer.name} wins this match! ✅`;
+            winnerPlayer.id === App.myId ? '这局你赢了！✅' : `${winnerPlayer.name} 赢下了这一局！✅`;
           document.getElementById('ttt-host-only').style.display = 'none';
           document.getElementById('btn-ttt-again').classList.add('hidden');
           document.getElementById('btn-ttt-new-match').classList.add('hidden');
@@ -234,12 +236,12 @@ const TicTacToe = (() => {
       } else {
         result.classList.add('hidden');
         if (!mySymbol) {
-          status.textContent = '👁 Spectating this match';
+          status.textContent = '👁 本局观战中';
         } else if (state.currentTurn === App.myId) {
-          status.textContent = `Your turn! You are ${mySymbol === 'X' ? '✕' : '○'}`;
+          status.textContent = `轮到你了！你是 ${mySymbol === 'X' ? '✕' : '○'}`;
         } else {
           const other = state.currentTurn === state.players.X.id ? state.players.X : state.players.O;
-          status.textContent = `${other.name}'s turn…`;
+          status.textContent = `等 ${other.name} 落子……`;
         }
       }
       return;
@@ -254,8 +256,8 @@ const TicTacToe = (() => {
       const mw = state.players.X.id === state.matchWinner ? state.players.X : state.players.O;
       const isMe = state.matchWinner === App.myId;
       document.getElementById('ttt-result-text').textContent = isMe
-        ? `🏆 You won the match! (Best of ${state.bestOf})`
-        : `🏆 ${mw.name} won the match! (Best of ${state.bestOf})`;
+        ? `🏆 你赢下了整场比赛！（${bestOfLabel(state.bestOf)}）`
+        : `🏆 ${mw.name} 赢下了整场比赛！（${bestOfLabel(state.bestOf)}）`;
       hostOnly.style.display = App.isHost ? 'flex' : 'none';
       newMatchBtn.classList.remove('hidden');
       newGameBtn.classList.add('hidden');
@@ -264,12 +266,12 @@ const TicTacToe = (() => {
       result.classList.remove('hidden');
       let msg;
       if (state.winner === 'draw') {
-        msg = "It's a draw! 🤝";
+        msg = '平局啦！🤝';
         const board = document.getElementById('ttt-board');
         board.classList.remove('ttt-shake'); void board.offsetWidth; board.classList.add('ttt-shake');
       } else {
         const winnerPlayer = state.players[state.winnerSymbol];
-        msg = winnerPlayer.id === App.myId ? 'You win! 🎉' : `${winnerPlayer.name} wins!`;
+        msg = winnerPlayer.id === App.myId ? '你赢啦！🎉' : `${winnerPlayer.name} 赢了！`;
       }
       document.getElementById('ttt-result-text').textContent = msg;
       hostOnly.style.display = App.isHost ? 'flex' : 'none';
@@ -279,12 +281,12 @@ const TicTacToe = (() => {
     } else {
       result.classList.add('hidden');
       if (!mySymbol) {
-        status.textContent = '👁 Spectating';
+        status.textContent = '👁 观战中';
       } else if (state.currentTurn === App.myId) {
-        status.textContent = `Your turn! You are ${mySymbol === 'X' ? '✕' : '○'}`;
+        status.textContent = `轮到你了！你是 ${mySymbol === 'X' ? '✕' : '○'}`;
       } else {
         const other = state.currentTurn === state.players.X.id ? state.players.X : state.players.O;
-        status.textContent = `${other.name}'s turn…`;
+        status.textContent = `等 ${other.name} 落子……`;
       }
     }
   }

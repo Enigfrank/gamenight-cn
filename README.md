@@ -1,14 +1,6 @@
-# 🎮 GameNight
+# 🎮 GameNight - CN
 
-> Self-hosted multiplayer party games for your living room. No internet. No accounts. Just fun.
-
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
-[![Socket.io](https://img.shields.io/badge/Socket.io-4.7-010101?style=flat-square&logo=socketdotio)](https://socket.io)
-[![Express](https://img.shields.io/badge/Express-4.18-000000?style=flat-square&logo=express)](https://expressjs.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-7c3aed?style=flat-square)](LICENSE)
-[![Games](https://img.shields.io/badge/games-5-blueviolet?style=flat-square)](#-games)
-[![Multiplayer](https://img.shields.io/badge/play-local%20network-0ea5e9?style=flat-square)](#-network-play)
-[![No frameworks](https://img.shields.io/badge/frontend-vanilla%20JS-f59e0b?style=flat-square)](#)
+> 适用于客厅的自托管局域网多人派对游戏。无需外网，无需注册账号，即开即玩。
 
 ---
 
@@ -19,167 +11,178 @@
  ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  ██║╚██╗██║██║██║   ██║██╔══██║   ██║   
  ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗██║ ╚████║██║╚██████╔╝██║  ██║   ██║   
   ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝  
+
 ```
 
-**GameNight** turns any device on your local network into a party game console.  
-Run one command → share the URL → play instantly.
+**GameNight** 将局域网内的任意设备转变为派对游戏主机。
+
+单条命令启动 → 分享链接 → 立即开玩。
 
 ---
 
-## 🎲 Games
+## 🎲 游戏列表
 
-| | Game | Players | Vibe |
-|--|------|---------|------|
-| 🔪 | **Mongolpuri** | 4–15 | Social deduction — lies, trust, and midnight murder |
-| 🃏 | **UNO** | 2+ | Classic card game with skips, reverses, and wild cards |
-| 🧠 | **Quiz** | 2+ | 15-question trivia from the internet — faster answers score more |
-| ⭕ | **Tic Tac Toe** | 2+ | Classic 1v1 with score tracking and match formats |
-| 🎨 | **Scribble** | 3+ | Draw a word while your friends race to guess it |
-
----
-
-## ✨ Features
-
-- 🌐 **Fully local** — runs on your LAN, no internet required after setup
-- 📱 **Works everywhere** — phone, tablet, laptop — any browser
-- 🏠 **Room codes** — create a room, share the 6-letter code or invite link, done
-- 🔗 **Smart invite links** — link pre-fills the room code and shows only the game being joined
-- 🎭 **100 avatars** — auto-assigned by name for known players, random for new ones; open a modal to browse and change
-- 💾 **Remembered preferences** — name and avatar are saved and restored on your next visit
-- ⚙️ **Configurable** — host adjusts timers, rounds, match format before game starts
-- 📖 **Built-in rules** — tap "How to Play" to learn any game
-- 🔄 **Reconnect support** — refresh the page and jump back in
-- 👻 **Spectator mode** — eliminated players watch the action
-- 🌙 **Dark UI** — polished animations, countdown timers, role cards
+|  | 游戏 | 人数 | 特性/简介 |
+| --- | --- | --- | --- |
+| 🔪 | **Mongolpuri** | 4–15 | 社交推理 —— 谎言、信任与暗夜暗杀 |
+| 🃏 | **UNO** | 2+ | 经典卡牌游戏，包含跳过、反转与万能牌 |
+| 🧠 | **Quiz** | 2+ | 15 道网络题库问答 —— 作答越快，得分越高 |
+| ⭕ | **Tic Tac Toe** | 2+ | 经典 1v1 井字棋，支持比分统计与赛制设置 |
+| 🎨 | **Scribble** | 3+ | 一人作画，其余玩家竞猜词汇 |
 
 ---
 
-## 🚀 Quick Start
+## ✨ 功能特性
 
-### Prerequisites
+* 🌐 **纯本地运行** — 基于局域网运行，完成安装后无需连接外网
+* 📱 **多端兼容** — 手机、平板、笔记本电脑及任意现代浏览器均可运行
+* 🏠 **房间代码** — 创建房间后，分享 6 位字母房间号或邀请链接即可加入
+* 🔗 **智能邀请链接** — 链接自动预填房间号，并直接指向对应的游戏
+* 🎭 **100 种头像** — 老玩家根据昵称自动匹配头像，新玩家随机分配；支持通过弹窗浏览并更换
+* 💾 **本地偏好记忆** — 自动保存并在下次访问时恢复昵称与头像
+* ⚙️ **规则可配置** — 房主可在开局前调整倒计时、轮数与赛制
+* 📖 **内置游戏规则** — 点击“How to Play”查看对应游戏规则
+* 🔄 **断线重连** — 刷新页面即可重新进入正在进行的对局
+* 👻 **旁观模式** — 出局玩家可作为旁观者继续观看对局
+* 🌙 **暗色界面** — 包含动画效果、倒计时指示器与专属角色卡片
 
-- [Node.js 18+](https://nodejs.org/en/download)
+---
 
-### Install
+## 🚀 快速上手
+
+### 环境要求
+
+* [Node.js 18+](https://www.google.com/search?q=https://nodejs.org/en/download)
+
+### 安装依赖
 
 ```bash
 git clone <repo-url>
 cd gamenight
 npm install
+
 ```
 
-### Run
+### 启动服务
 
-| Platform | Command |
-|----------|---------|
-| Windows | Double-click `start.bat` or run it in terminal |
+| 平台 | 命令 |
+| --- | --- |
+| Windows | 双击 `start.bat` 或在终端中执行该文件 |
 | macOS / Linux | `./start.sh` |
-| Anywhere | `npm start` |
+| 跨平台通用 | `npm start` |
 
-Open **[http://localhost:4000](http://localhost:4000)** in your browser.
+在浏览器中打开 **[http://localhost:4000](http://localhost:4000)**。
 
 ---
 
-## 🌐 Network Play
+## 🌐 局域网联机
 
-When the server starts it prints every URL your friends can use:
+服务端启动时会输出所有可供加入的访问地址：
 
 ```
 🎮  GameNight is live!
 
   Local:    http://localhost:4000
-  Network:  http://192.168.1.42:4000   ← share this!
+  Network:  http://192.168.1.42:4000   ← 分享该地址！
   Network:  http://10.0.0.5:4000
+
 ```
 
-Anyone on the **same WiFi or LAN** can open the Network URL directly — no setup needed on their end.
+处于**同一 Wi-Fi 或局域网**下的设备直接访问 Network 地址即可加入，客户端无需配置环境。
 
-The server also advertises itself via **mDNS (Bonjour)**, so on most devices you can use the stable hostname instead:
+服务端支持通过 **mDNS (Bonjour)** 广播，在多数设备上可直接通过固定主机名访问：
 
 ```
 http://gamenight.local:4000
+
 ```
 
-> **Tip:** `gamenight.local` works on macOS, iOS, Android, and most Linux desktops out of the box. Windows may need [Bonjour for Windows](https://support.apple.com/kb/DL999). If it doesn't resolve, fall back to the IP shown in the terminal.
+> **提示：** macOS、iOS、Android 及多数 Linux 桌面系统原生支持 `gamenight.local`。Windows 系统可能需要安装 [Bonjour for Windows](https://www.google.com/search?q=https://support.apple.com/kb/DL999)。若域名无法解析，请直接使用终端输出的 IP 地址。
 
 ---
 
-## ⚙️ Game Settings
+## ⚙️ 游戏设置
 
-The room creator can tune settings in the lobby before the game starts. Everyone else sees the current configuration.
+房主可在开局前的大厅中修改规则参数，其余玩家可同步查看当前设置。
 
-| Game | Configurable |
-|------|-------------|
-| 🎨 Scribble | Draw time (40–120 s) · Rounds (2–5) · Word choices per turn (2–4) |
-| 🔪 Mongolpuri | Discussion time · Voting time |
-| ⭕ Tic Tac Toe | Free play · Best of 3 / 5 / 7 |
-| 🃏 UNO | No configurable settings — standard rules apply |
-| 🧠 Quiz | Questions (10 / 15 / 20 / 25) · Time per question (10 / 15 / 20 / 30 s) |
+| 游戏 | 可配置项 |
+| --- | --- |
+| 🎨 Scribble | 作画时长 (40–120 秒) · 轮数 (2–5) · 每回合备选词数 (2–4) |
+| 🔪 Mongolpuri | 讨论时长 · 投票时长 |
+| ⭕ Tic Tac Toe | 自由练习 · 3 局 2 胜 / 5 局 3 胜 / 7 局 4 胜 |
+| 🃏 UNO | 无可配置项 —— 采用标准规则 |
+| 🧠 Quiz | 题目数量 (10 / 15 / 20 / 25) · 每题作答时长 (10 / 15 / 20 / 30 秒) |
 
 ---
 
-## 📖 How to Play
+## 📖 游戏规则
 
-Rules are built into the app — click **"How to Play"** on any screen. Here's the quick version:
+规则已集成至应用内部 —— 在任意界面点击 **"How to Play"** 即可查阅。以下为核心机制概述：
 
 ### 🔪 Mongolpuri
-Players are secretly assigned **Killer**, **Doctor**, or **Villager**. Roles are hidden by default — tap your role card to reveal it. Each night, every player confirms they are awake (villagers tap "I'm awake"; killer and doctor choose their target). Once all players have acted, the server waits a random delay then resolves the night. At dawn the village debates during a timed discussion, then votes to eliminate a suspect. Villagers win by voting out the Killer. The Killer wins by reducing the living players to two.
 
-In larger games there may be **multiple Doctors** — roughly one per five players — to keep the game balanced.
+玩家将被秘密分配为**杀手**（Killer）、**医生**（Doctor）或**村民**（Villager）。身份默认隐藏，点击角色卡即可查看。每晚，全体玩家确认自身处于清醒状态（村民点击“I'm awake”；杀手与医生选择行动目标）。所有玩家完成操作后，服务端经过随机延迟结算夜晚结果。黎明阶段，全村在限定时间内进行讨论，随后投票淘汰一名嫌疑人。村民票决淘汰杀手获胜；杀手将存活人数消减至 2 人获胜。
+
+在人数较多的对局中，系统会配置**多名医生**（约每 5 名玩家配置 1 名）以维持平衡。
 
 ### 🃏 UNO
-Standard UNO rules. Each player starts with 7 cards. On your turn, play a card that matches the top discard by color or value, or draw one from the deck. Special cards: **Skip** ends the next player's turn, **Reverse** flips direction, **+2** forces the next player to draw two, **Wild** lets you choose the active color, **Wild +4** does the same and forces a four-card draw. First player to empty their hand wins. Your name is displayed in the top-left of the game header.
+
+采用标准 UNO 规则。每人初始手牌 7 张。轮到出牌时，打出与弃牌堆顶端卡牌颜色或数值匹配的手牌，或从牌堆抽一张牌。特殊卡牌功能：**跳过**（Skip）跳过下一位玩家回合，**反转**（Reverse）翻转出牌顺序，**+2** 强制下一位玩家摸 2 张牌，**变色牌**（Wild）可指定后续生效颜色，**Wild +4** 改变颜色并强制下一位玩家摸 4 张牌。最先清空手牌者获胜。当前玩家昵称显示于游戏顶栏左侧。
 
 ### 🧠 Quiz
-The server fetches questions from the [Open Trivia Database](https://opentdb.com) at game start and sorts them easy → medium → hard. While questions are loading, players see a "Fetching questions…" screen; the first question appears automatically once the fetch completes (usually under a second, up to ~6 s if the API rate-limits). Each question shows 4 lettered options (A–D) with a countdown timer. Correct answers score 500–1000 points based on speed — the first player to answer correctly earns a +200 bonus (marked with ⚡). After each question the correct answer is revealed with animations alongside the updated leaderboard. The game-over ranking table shows each player's correct-answer count alongside their total score. Requires internet access when starting the game.
+
+游戏启动时，服务端从 [Open Trivia Database](https://www.google.com/search?q=https://opentdb.com) 获取题库，并按“简单 → 中等 → 困难”递进排序。拉取题目期间界面显示“Fetching questions…”；加载完成后自动展示第一题（通常在 1 秒内完成，若触发 API 速率限制最长约需 6 秒）。每道题提供 4 个选项（A–D）并附带倒计时。答对根据速度获得 500–1000 分，首个答对者追加 +200 奖励分（标有 ⚡ 符号）。每题结束后展示动画揭晓正确答案，并刷新积分榜。游戏结算榜展示每位玩家的答对题数与最终积分。注：启动该游戏时服务端设备需接入外网。
 
 ### 🎨 Scribble
-One player draws a secret word on a shared canvas while everyone else types guesses in the chat. Faster correct guesses = more points. The drawer earns bonus points for each correct guesser. Hints appear as time runs low. Roles rotate every turn.
+
+一名玩家在共享画布上绘制指定词汇，其余玩家在聊天框输入答案竞猜。作答越快，得分越高。画图玩家根据猜中人数获得额外加分。倒计时临近结束时系统会提供线索提示。每回合轮换作画玩家。
 
 ### ⭕ Tic Tac Toe
-Classic 3×3 grid. Get three of your symbol in a row (horizontal, vertical, or diagonal) to win. X always goes first. Symbols swap each game. In match formats, first to reach the win target takes the match. Supports single-elimination tournaments for groups.
+
+经典 3×3 棋盘。在横向、纵向或对角线任意方向连成 3 颗己方棋子获胜。X 固定先手。每局结束后双方符号互换。在设定赛制下，先达到目标胜场数者赢得比赛。支持多人群体单败淘汰赛。
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ 技术栈
 
-| Layer | Tech |
-|-------|------|
-| Runtime | Node.js |
-| HTTP server | Express |
-| Realtime | Socket.io (WebSockets) |
-| Drawing | HTML5 Canvas API |
-| Frontend | Vanilla JS, pure CSS |
-| Styles | CSS custom properties, no framework |
+| 层次 | 技术组件 |
+| --- | --- |
+| 运行时 | Node.js |
+| HTTP 服务端 | Express |
+| 实时通信 | Socket.io (WebSockets) |
+| 画布绘制 | HTML5 Canvas API |
+| 前端实现 | 原生 JavaScript、纯 CSS |
+| 样式系统 | CSS 自定义属性（Variables），无前端框架依赖 |
 
 ---
 
-## 📁 Structure
+## 📁 目录结构
 
 ```
 gamenight/
-├── server.js            # All game logic + Socket.io events
+├── server.js            # 完整游戏逻辑与 Socket.io 事件定义
 ├── public/
-│   ├── index.html       # Single-page app shell
-│   ├── style.css        # Dark theme, animations
+│   ├── index.html       # 单页应用入口
+│   ├── style.css        # 暗色主题与动效样式
 │   └── js/
-│       ├── app.js           # Socket setup · lobby · views · avatars · settings
-│       ├── killerdoctor.js  # Mongolpuri client UI
-│       ├── tictactoe.js     # Tic Tac Toe client UI
-│       ├── scribble.js      # Scribble canvas + chat
-│       ├── uno.js           # UNO client UI
-│       └── quiz.js          # Quiz client UI
-├── start.bat            # Windows one-click launcher
-├── start.sh             # macOS / Linux launcher
+│       ├── app.js           # Socket 连接配置 · 大厅系统 · 视图管理 · 头像逻辑 · 房间设置
+│       ├── killerdoctor.js  # Mongolpuri 客户端交互
+│       ├── tictactoe.js     # Tic Tac Toe 客户端交互
+│       ├── scribble.js      # Scribble 画布与聊天系统
+│       ├── uno.js           # UNO 客户端交互
+│       └── quiz.js          # Quiz 客户端交互
+├── start.bat            # Windows 启动脚本
+├── start.sh             # macOS / Linux 启动脚本
 └── package.json
+
 ```
 
 ---
 
-## 📝 License
+## 📝 许可协议
 
-MIT — do whatever you want with it.
+MIT 许可证 — 允许自由使用与修改。
 
 ---
 
-*No cloud. No tracking. No nonsense. Just game night.*
+*无云端依赖。无数据追踪。无冗余设计。纯粹的派对游戏之夜。*

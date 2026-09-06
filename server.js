@@ -116,11 +116,11 @@ io.on('connection', socket => {
   socket.on('room:join', ({ code, playerName, avatar }) => {
     const upper = (code || '').toUpperCase().trim();
     const room = rooms.get(upper);
-    if (!room) { socket.emit('room:error', { msg: 'Room not found.' }); return; }
+    if (!room) { socket.emit('room:error', { msg: '房间不存在，检查下代码有没有输错？' }); return; }
 
     if (room.status === 'playing') {
       const existing = [...room.players.values()].find(p => p.name === playerName?.trim());
-      if (!existing) { socket.emit('room:error', { msg: 'Game in progress — cannot join now.' }); return; }
+      if (!existing) { socket.emit('room:error', { msg: '游戏已经开始啦，中途进不来。' }); return; }
       room.players.delete(existing.id);
       if (room.host === existing.id) room.host = socket.id;
       existing.id = socket.id;
@@ -133,21 +133,21 @@ io.on('connection', socket => {
     }
 
     if (room.players.has(socket.id)) return;
-    const name = (playerName || '').trim() || `Player${room.players.size + 1}`;
+    const name = (playerName || '').trim() || `玩家${room.players.size + 1}`;
     const av = Number(avatar) || 0;
     const existing = [...room.players.values()];
     if (existing.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-      socket.emit('room:error', { msg: 'That name is already taken in this room. Please choose a different name.' }); return;
+      socket.emit('room:error', { msg: '这个名字房间里已经有人用了，换一个吧。' }); return;
     }
     if (existing.some(p => p.avatar === av)) {
-      socket.emit('room:error', { msg: 'That avatar is already taken in this room. Please choose a different avatar.' }); return;
+      socket.emit('room:error', { msg: '这个头像已经被选走了，换一个吧。' }); return;
     }
     room.players.set(socket.id, { id: socket.id, name, avatar: av });
     playerRooms.set(socket.id, upper);
     socket.join(upper);
     socket.emit('room:joined', { code: upper, isHost: false, gameType: room.gameType });
     broadcastLobby(room);
-    io.to(upper).emit('notification', `${name} joined the room`);
+    io.to(upper).emit('notification', `${name} 进入了房间`);
   });
 
   socket.on('room:settings', newSettings => {
@@ -168,7 +168,7 @@ io.on('connection', socket => {
     io.sockets.sockets.get(playerId)?.leave(room.code);
     room.players.delete(playerId);
     playerRooms.delete(playerId);
-    io.to(room.code).emit('notification', `${player.name} was removed by the host`);
+    io.to(room.code).emit('notification', `${player.name} 被房主请出了房间`);
     if (room.status === 'playing') {
       onPlayerDisconnect(room, playerId, player.name);
     } else {
@@ -181,7 +181,7 @@ io.on('connection', socket => {
     if (!room || room.host !== socket.id || room.status !== 'lobby') return;
     if (!playerId || !room.players.has(playerId) || playerId === socket.id) return;
     room.host = playerId;
-    io.to(room.code).emit('notification', `${room.players.get(playerId).name} is now the host`);
+    io.to(room.code).emit('notification', `${room.players.get(playerId).name} 成为新房主啦`);
     broadcastLobby(room);
   });
 
@@ -189,7 +189,7 @@ io.on('connection', socket => {
     const room = getRoom(socket.id);
     if (!room || room.host !== socket.id || room.status !== 'lobby') return;
     if (room.players.size < minPlayers(room.gameType)) {
-      socket.emit('room:error', { msg: `Need at least ${minPlayers(room.gameType)} players to start.` });
+      socket.emit('room:error', { msg: `至少要 ${minPlayers(room.gameType)} 名玩家才能开局。` });
       return;
     }
     room.status = 'playing';
@@ -231,13 +231,13 @@ io.on('connection', socket => {
     const room = getRoom(socket.id);
     if (!room) return;
     const player = room.players.get(socket.id);
-    const name = player?.name || 'A player';
+    const name = player?.name || '有位玩家';
     room.players.delete(socket.id);
     playerRooms.delete(socket.id);
     if (room.players.size === 0) { clearTimers(room); rooms.delete(room.code); return; }
     if (room.host === socket.id) room.host = room.players.keys().next().value;
     broadcastLobby(room);
-    io.to(room.code).emit('notification', `${name} left the room`);
+    io.to(room.code).emit('notification', `${name} 离开了房间`);
     if (room.status === 'playing') onPlayerDisconnect(room, socket.id, name);
   });
 });
@@ -348,7 +348,7 @@ function onPlayerDisconnect(room, sid, name) {
       if (gs.playerData?.[sid]) gs.playerData[sid].alive = false;
       { const win = kdCheckWin(gs);
         if (win) { clearTimers(room); endKD(room, win); }
-        else if (kdAlive(gs).length < minPlayers(room.gameType)) { clearTimers(room); endKD(room, { winner: 'abandoned', reason: 'Not enough players to continue.' }); }
+        else if (kdAlive(gs).length < minPlayers(room.gameType)) { clearTimers(room); endKD(room, { winner: 'abandoned', reason: '人不够了，游戏没法继续。' }); }
         else if (gs.phase === 'night') checkNightDone(room); }
       break;
     case 'tictactoe':
@@ -359,7 +359,7 @@ function onPlayerDisconnect(room, sid, name) {
           if (gs.allPlayers[winnerId]) {
             gs.rounds[gs.currentRound][gs.currentMatch].winner = winnerId;
             delete gs.allPlayers[sid];
-            io.to(room.code).emit('notification', `${name} left — ${gs.allPlayers[winnerId]?.name} advances!`);
+            io.to(room.code).emit('notification', `${name} 中途退场，${gs.allPlayers[winnerId]?.name} 直接晋级！`);
             io.to(room.code).emit('ttt:tournament_state', tttTournamentPublic(gs));
             clearTimers(room);
             addTimer(room, () => advanceTournament(room), 2000);
@@ -693,9 +693,9 @@ function kdResolveNight(room) {
     if (dChoices.has(kChoice)) saved = true;
     else { died = kChoice; gs.playerData[died].alive = false; }
   }
-  const msg = saved ? 'A Doctor saved someone! Nobody died last night.'
-    : died ? `${gs.playerData[died].name} was found dead this morning.`
-    : 'A peaceful night passed.';
+  const msg = saved ? '医生出手相救！昨晚无人死亡。'
+    : died ? `今天一早发现了 ${gs.playerData[died].name} 的尸体。`
+    : '一夜平安，啥事没有。';
   if (died) gs.history.push({ name: gs.playerData[died].name, reason: 'night_kill', round: gs.round });
   io.to(room.code).emit('kd:night_result', {
     message: msg,
@@ -758,9 +758,9 @@ function kdResolveVoting(room) {
   io.to(room.code).emit('kd:vote_result', {
     tied, voteDetails,
     eliminated: elimPlayer ? { ...kdPub(elimPlayer), role: elimPlayer.role } : null,
-    message: tied ? 'The vote ended in a tie. Nobody was eliminated.'
-      : elimPlayer ? `${elimPlayer.name} was eliminated by the village!`
-      : 'Nobody was eliminated.',
+    message: tied ? '平票！这轮没人出局。'
+      : elimPlayer ? `${elimPlayer.name} 被村民们投出局了！`
+      : '这轮没人出局。',
     livingPlayers: kdAlive(gs).map(kdPub),
     deadPlayers: kdDead(gs).map(kdPub),
   });
@@ -772,8 +772,8 @@ function kdResolveVoting(room) {
 
 function kdCheckWin(gs) {
   const killer = kdRole(gs,'killer');
-  if (!killer?.alive) return { winner: 'villagers', reason: 'The Killer has been eliminated!' };
-  if (kdAlive(gs).length <= 2) return { winner: 'killer', reason: 'The Killer cannot be outvoted!' };
+  if (!killer?.alive) return { winner: 'villagers', reason: '杀手已被正法！' };
+  if (kdAlive(gs).length <= 2) return { winner: 'killer', reason: '杀手已经无人能挡！' };
   return null;
 }
 
@@ -830,21 +830,21 @@ const kdPub   = p  => ({ id: p.id, name: p.name, avatar: p.avatar ?? 0 });
 // ─────────────────────────── SCRIBBLE ───────────────────────────
 
 const WORDS = [
-  'apple','banana','castle','dragon','elephant','fireworks','guitar','helicopter',
-  'iceberg','jungle','kangaroo','lighthouse','mermaid','notebook','octopus','parachute',
-  'quicksand','rainbow','spaceship','telescope','umbrella','volcano','waterfall','xylophone',
-  'zebra','airplane','balloon','compass','dinosaur','envelope','fountain','gorilla',
-  'hammock','island','jellyfish','kite','lantern','mushroom','necklace','orange',
-  'penguin','rocket','saxophone','tornado','unicorn','vampire','whale','cactus',
-  'butterfly','trampoline','campfire','sunflower','robot','treasure','pirate','ninja',
-  'wizard','ghost','hamburger','pizza','anchor','bridge','crown','diamond','eagle',
-  'forest','galaxy','igloo','knight','lemon','microscope','noodle','owl','river',
-  'sandcastle','tiger','violin','windmill','yarn','zoo','avocado','broccoli',
-  'chimney','doorbell','escalator','flamingo','giraffe','hourglass','icicle',
-  'juggler','keyhole','magnet','narwhal','paintbrush','rhinoceros',
-  'submarine','thermometer','typewriter','ukulele','windshield','yacht','zeppelin',
-  'race car','ice cream','hot dog','palm tree','fire hydrant','roller coaster',
-  'thunderstorm','snowflake','birthday cake','treasure chest','roller skates',
+  '苹果','香蕉','城堡','飞龙','大象','烟花','吉他','直升机',
+  '冰山','丛林','袋鼠','灯塔','美人鱼','笔记本','章鱼','降落伞',
+  '流沙','彩虹','宇宙飞船','望远镜','雨伞','火山','瀑布','木琴',
+  '斑马','飞机','气球','指南针','恐龙','信封','喷泉','大猩猩',
+  '吊床','海岛','水母','风筝','灯笼','蘑菇','项链','橙子',
+  '企鹅','火箭','萨克斯','龙卷风','独角兽','吸血鬼','鲸鱼','仙人掌',
+  '蝴蝶','蹦床','篝火','向日葵','机器人','宝藏','海盗','忍者',
+  '巫师','幽灵','汉堡包','披萨','船锚','大桥','皇冠','钻石','老鹰',
+  '森林','银河','冰屋','骑士','柠檬','显微镜','面条','猫头鹰','河流',
+  '沙堡','老虎','小提琴','风车','毛线','动物园','牛油果','西兰花',
+  '烟囱','门铃','扶手电梯','火烈鸟','长颈鹿','沙漏','冰柱',
+  '杂技演员','钥匙孔','磁铁','独角鲸','画笔','犀牛',
+  '潜水艇','温度计','打字机','尤克里里','游艇','飞艇',
+  '赛车','冰淇淋','热狗','椰子树','消防栓','过山车',
+  '雷阵雨','雪花','生日蛋糕','藏宝箱','轮滑鞋',
 ];
 
 function randWords(n=3) { return [...WORDS].sort(()=>Math.random()-.5).slice(0,n); }
@@ -1063,14 +1063,14 @@ function startUno(room) {
   const gs = room.gameState;
   if (startCard.value === 'skip') {
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
-    io.to(room.code).emit('notification', `Starting card: Skip! ${players[0].name} loses first turn.`);
+    io.to(room.code).emit('notification', `起始牌是跳过！${players[0].name} 第一回合被跳过。`);
   } else if (startCard.value === 'reverse') {
     if (playerOrder.length > 2) gs.direction = -1;
-    io.to(room.code).emit('notification', `Starting card: Reverse! Play order changed.`);
+    io.to(room.code).emit('notification', `起始牌是反转！出牌顺序掉头了。`);
   } else if (startCard.value === 'draw2') {
     unoDrawN(gs, playerOrder[0], 2);
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
-    io.to(room.code).emit('notification', `Starting card: Draw Two! ${players[0].name} draws 2.`);
+    io.to(room.code).emit('notification', `起始牌是 +2！${players[0].name} 摸了两张。`);
   }
 
   io.to(room.code).emit('uno:state', unoPublic(gs));
@@ -1106,7 +1106,7 @@ function unoPlayCard(room, socket, cardIndex) {
 
   if (hand.length === 1) {
     gs.unoSaid[socket.id] = true;
-    io.to(room.code).emit('notification', `${gs.players[socket.id]?.name} says UNO!`);
+    io.to(room.code).emit('notification', `${gs.players[socket.id]?.name} 喊出了 UNO！`);
   } else if (hand.length > 1) {
     gs.unoSaid[socket.id] = false;
   }
@@ -1135,7 +1135,7 @@ function unoPlayCard(room, socket, cardIndex) {
     const nextIdx = unoNextIdx(gs, 1), nextId = gs.playerOrder[nextIdx];
     unoDrawN(gs, nextId, 2);
     io.to(nextId).emit('uno:hand', { hand: gs.hands[nextId] });
-    io.to(room.code).emit('notification', `${gs.players[nextId]?.name} draws 2!`);
+    io.to(room.code).emit('notification', `${gs.players[nextId]?.name} 摸了两张牌！`);
     gs.currentPlayerIndex = unoNextIdx(gs, 2);
   } else {
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
@@ -1187,7 +1187,7 @@ function unoChooseColor(room, socket, color) {
     const nextIdx = unoNextIdx(gs, 1), nextId = gs.playerOrder[nextIdx];
     unoDrawN(gs, nextId, 4);
     io.to(nextId).emit('uno:hand', { hand: gs.hands[nextId] });
-    io.to(room.code).emit('notification', `${gs.players[nextId]?.name} draws 4!`);
+    io.to(room.code).emit('notification', `${gs.players[nextId]?.name} 摸了四张牌！`);
     gs.currentPlayerIndex = unoNextIdx(gs, 2);
   } else {
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
@@ -1257,7 +1257,7 @@ async function startQuiz(room) {
     if (rooms.has(room.code)) {
       room.status = 'lobby';
       io.to(room.code).emit('game:back_to_lobby');
-      io.to(room.code).emit('notification', 'Failed to load questions — check your internet connection.');
+      io.to(room.code).emit('notification', '题目加载失败——看看你的网络是不是断了。');
       broadcastLobby(room);
     }
   }
@@ -1357,10 +1357,10 @@ server.listen(PORT, '0.0.0.0', () => {
   const bonjour = new Bonjour();
   bonjour.publish({ name: 'GameNight', type: 'http', port: Number(PORT), host: MDNS_HOST });
 
-  console.log('\n🎮  GameNight is live!\n');
-  console.log(`  Local:    http://localhost:${PORT}`);
-  console.log(`  Network:  http://${MDNS_HOST}:${PORT}  ← share with friends!`);
-  console.log('\n  Open in any browser on the same WiFi / LAN.\n');
+  console.log('\n🎮  GameNight 启动成功！\n');
+  console.log(`  本地访问:    http://localhost:${PORT}`);
+  console.log(`  局域网访问:  http://${MDNS_HOST}:${PORT}  ← 把这个地址发给朋友们！`);
+  console.log('\n  同一 WiFi / 局域网内的设备用任意浏览器打开即可。\n');
 
   process.on('SIGINT', () => bonjour.unpublishAll(() => process.exit()));
   process.on('SIGTERM', () => bonjour.unpublishAll(() => process.exit()));

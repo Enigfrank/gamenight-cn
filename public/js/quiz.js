@@ -3,12 +3,13 @@ const QUIZ = (() => {
   let myAnswer = null;
   let timerInterval = null;
   const LETTERS = ['A', 'B', 'C', 'D'];
+  const DIFF_NAMES = { easy: '简单', medium: '中等', hard: '困难' };
 
   // ─── Init ───────────────────────────────────────────────────
 
   function init() {
     document.getElementById('quiz-btn-exit').addEventListener('click', () => {
-      showConfirm('Leave game?', () => App.socket.emit('game:back_to_lobby'), { confirmText: 'Leave' });
+      showConfirm('要离开游戏吗？', () => App.socket.emit('game:back_to_lobby'), { confirmText: '离开' });
     });
     document.querySelectorAll('.quiz-opt').forEach((btn, i) => {
       btn.addEventListener('click', () => {
@@ -91,8 +92,8 @@ const QUIZ = (() => {
     document.getElementById('quiz-my-name').textContent = me?.name ?? App.myName ?? '';
     document.getElementById('quiz-sidebar-list').innerHTML = '';
 
-    document.getElementById('quiz-question').textContent = 'Fetching questions…';
-    document.getElementById('quiz-answer-status').textContent = 'This may take a few seconds';
+    document.getElementById('quiz-question').textContent = '正在出题……';
+    document.getElementById('quiz-answer-status').textContent = '可能要等几秒钟，别急哈';
     document.getElementById('quiz-answer-status').className = 'quiz-answer-status';
     document.getElementById('quiz-score-delta').classList.add('hidden');
     document.getElementById('quiz-timer-bar').style.width = '0%';
@@ -115,9 +116,9 @@ const QUIZ = (() => {
   }
 
   function renderHeader() {
-    document.getElementById('quiz-q-num').textContent = `Q ${state.questionIndex + 1} / ${state.totalQuestions}`;
+    document.getElementById('quiz-q-num').textContent = `第 ${state.questionIndex + 1} / ${state.totalQuestions} 题`;
     const badge = document.getElementById('quiz-diff-badge');
-    badge.textContent = state.difficulty.charAt(0).toUpperCase() + state.difficulty.slice(1);
+    badge.textContent = DIFF_NAMES[state.difficulty] || state.difficulty;
     badge.className = 'quiz-diff-badge diff-' + state.difficulty;
   }
 
@@ -145,7 +146,7 @@ const QUIZ = (() => {
           if (isMine && myResult?.firstCorrect) {
             const badge = document.createElement('span');
             badge.className = 'quiz-first-badge';
-            badge.textContent = '⚡ First!';
+            badge.textContent = '⚡ 最快！';
             btn.appendChild(badge);
           }
         } else if (isMine) {
@@ -165,13 +166,13 @@ const QUIZ = (() => {
     const el = document.getElementById('quiz-answer-status');
     if (!state) return;
     if (state.phase === 'reveal') {
-      el.textContent = `${state.answersIn} of ${state.totalPlayers} answered`;
+      el.textContent = `${state.answersIn} / ${state.totalPlayers} 人已作答`;
       el.className = 'quiz-answer-status';
     } else if (myAnswer !== null) {
-      el.textContent = `Waiting… (${state.answersIn}/${state.totalPlayers} answered)`;
+      el.textContent = `等其他人作答……（已答 ${state.answersIn}/${state.totalPlayers}）`;
       el.className = 'quiz-answer-status waiting';
     } else {
-      el.textContent = `${state.answersIn} of ${state.totalPlayers} answered`;
+      el.textContent = `${state.answersIn} / ${state.totalPlayers} 人已作答`;
       el.className = 'quiz-answer-status';
     }
   }
@@ -190,15 +191,15 @@ const QUIZ = (() => {
     void el.offsetWidth;
 
     if (myResult.correct) {
-      let text = `+${myResult.points} pts`;
+      let text = `+${myResult.points} 分`;
       if (myResult.firstCorrect) text += ' ⚡';
       el.textContent = text;
       el.className = 'quiz-score-delta delta-correct delta-pop';
     } else if (!myAnswer) {
-      el.textContent = "Time's up!";
+      el.textContent = '时间到！';
       el.className = 'quiz-score-delta delta-timeout delta-pop';
     } else {
-      el.textContent = 'Wrong!';
+      el.textContent = '答错啦！';
       el.className = 'quiz-score-delta delta-wrong delta-pop';
     }
   }
@@ -243,7 +244,7 @@ const QUIZ = (() => {
     const winnerName = state.players?.[winnerId]?.name ?? '?';
 
     document.getElementById('quiz-gameover-title').textContent =
-      winnerId === App.myId ? 'You win!' : `${winnerName} wins!`;
+      winnerId === App.myId ? '你赢啦！' : `${winnerName} 赢啦！`;
 
     const scoresEl = document.getElementById('quiz-gameover-scores');
     scoresEl.innerHTML = '';
@@ -259,7 +260,7 @@ const QUIZ = (() => {
         `<span class="quiz-rank">${medals[i] ?? (i + 1) + '.'}</span>` +
         `<span class="quiz-player-name">${state.players?.[id]?.name ?? '?'}</span>` +
         `<span class="quiz-correct-count">${correct}/${total}</span>` +
-        `<span class="quiz-total-score">${score} <span class="quiz-pts-label">pts</span></span>`;
+        `<span class="quiz-total-score">${score} <span class="quiz-pts-label">分</span></span>`;
       scoresEl.appendChild(row);
     });
 

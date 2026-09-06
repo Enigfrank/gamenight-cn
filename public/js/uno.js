@@ -2,12 +2,13 @@ const UNO = (() => {
   let state = null;
   let myHand = [];
   let drawnCardIndex = -1;
+  const COLOR_NAMES = { red: '红色', yellow: '黄色', green: '绿色', blue: '蓝色', wild: '万能' };
 
   // ─── Init ───────────────────────────────────────────────────
 
   function init() {
     document.getElementById('uno-btn-exit').addEventListener('click', () => {
-      showConfirm('Leave game?', () => App.socket.emit('game:back_to_lobby'), { confirmText: 'Leave' });
+      showConfirm('要离开游戏吗？', () => App.socket.emit('game:back_to_lobby'), { confirmText: '离开' });
     });
     document.getElementById('uno-btn-draw').addEventListener('click', () => {
       App.socket.emit('game:action', { action: 'draw' });
@@ -55,7 +56,7 @@ const UNO = (() => {
 
   function onGameOver({ winnerId, winnerName, scores, players }) {
     document.getElementById('uno-gameover-title').textContent =
-      winnerId === App.myId ? 'You win! 🎉' : `${winnerName} wins!`;
+      winnerId === App.myId ? '你赢啦！🎉' : `${winnerName} 赢啦！`;
 
     const scoresEl = document.getElementById('uno-gameover-scores');
     scoresEl.innerHTML = '';
@@ -67,7 +68,7 @@ const UNO = (() => {
       row.innerHTML =
         `<span class="uno-score-rank">${medals[i] || (i + 1) + '.'}</span>` +
         `<span class="uno-score-name">${players[id]?.name || '?'}</span>` +
-        `<span class="uno-score-val">${count === 0 ? 'Winner!' : count + ' card' + (count !== 1 ? 's' : '') + ' left'}</span>`;
+        `<span class="uno-score-val">${count === 0 ? '获胜！' : '还剩 ' + count + ' 张牌'}</span>`;
       scoresEl.appendChild(row);
     });
 
@@ -86,13 +87,13 @@ const UNO = (() => {
     const statusEl = document.getElementById('uno-status');
     if (phase === 'choose_color') {
       const chooser = state.players[state.currentPlayerId]?.name || '?';
-      statusEl.textContent = isMyTurn ? 'Choose a color…' : `${chooser} is choosing a color…`;
+      statusEl.textContent = isMyTurn ? '选一个颜色……' : `${chooser} 正在选颜色……`;
       statusEl.style.color = '';
     } else if (isMyTurn) {
-      statusEl.textContent = state.awaitingPass ? 'Play the drawn card or pass' : 'Your turn!';
+      statusEl.textContent = state.awaitingPass ? '打出刚摸的牌，或者选择过' : '轮到你了！';
       statusEl.style.color = 'var(--green)';
     } else {
-      statusEl.textContent = `${state.players[state.currentPlayerId]?.name || '?'}'s turn`;
+      statusEl.textContent = `轮到 ${state.players[state.currentPlayerId]?.name || '?'} 出牌`;
       statusEl.style.color = '';
     }
 
@@ -164,7 +165,7 @@ const UNO = (() => {
 
       const countLabel = document.createElement('div');
       countLabel.className = 'uno-opp-count';
-      countLabel.textContent = `${count} card${count !== 1 ? 's' : ''}`;
+      countLabel.textContent = `${count} 张牌`;
 
       div.appendChild(nameRow);
       div.appendChild(cardsRow);
@@ -219,7 +220,7 @@ const UNO = (() => {
   }
 
   function cardLabel(card) {
-    const labels = { skip: 'SKIP', reverse: 'REV', draw2: '+2', wild: 'WILD', wild4: '+4' };
+    const labels = { skip: '跳过', reverse: '反转', draw2: '+2', wild: '万能', wild4: '+4' };
     return labels[card.value] ?? card.value;
   }
 

@@ -1,55 +1,55 @@
 // ═══════════════════ AVATARS ═══════════════════
 const AVATARS = [
-  { emoji: '🧙', name: 'Wizard' },   { emoji: '🐗', name: 'Boar' },
-  { emoji: '🏹', name: 'Archer' },   { emoji: '🛡️', name: 'Knight' },
-  { emoji: '🔮', name: 'Seer' },     { emoji: '🗡️', name: 'Rogue' },
-  { emoji: '🦊', name: 'Fox' },      { emoji: '🐺', name: 'Wolf' },
-  { emoji: '🦅', name: 'Eagle' },    { emoji: '🧝', name: 'Elf' },
-  { emoji: '🤺', name: 'Duelist' },  { emoji: '🧛', name: 'Vampire' },
-  { emoji: '🧟', name: 'Ghost' },    { emoji: '🧜', name: 'Mermaid' },
-  { emoji: '🎭', name: 'Jester' },   { emoji: '👑', name: 'King' },
-  { emoji: '🐉', name: 'Dragon' },   { emoji: '🦁', name: 'Lion' },
-  { emoji: '🐻', name: 'Bear' },     { emoji: '🦄', name: 'Unicorn' },
-  { emoji: '🐙', name: 'Octopus' },  { emoji: '🦝', name: 'Raccoon' },
-  { emoji: '🐧', name: 'Penguin' },  { emoji: '🦋', name: 'Butterfly' },
-  { emoji: '🐸', name: 'Frog' },     { emoji: '🦩', name: 'Flamingo' },
-  { emoji: '🐯', name: 'Tiger' },    { emoji: '🦀', name: 'Crab' },
-  { emoji: '🦜', name: 'Parrot' },   { emoji: '🐳', name: 'Whale' },
-  { emoji: '🦈', name: 'Shark' },    { emoji: '🤖', name: 'Robot' },
-  { emoji: '🧞', name: 'Genie' },    { emoji: '🦸', name: 'Hero' },
-  { emoji: '🐊', name: 'Croc' },     { emoji: '🦉', name: 'Owl' },
-  { emoji: '🐬', name: 'Dolphin' },  { emoji: '🦦', name: 'Otter' },
-  { emoji: '🐘', name: 'Elephant' }, { emoji: '🐒', name: 'Monkey' },
-  { emoji: '🦒', name: 'Giraffe' },  { emoji: '🦌', name: 'Deer' },
-  { emoji: '🧪', name: 'Tester' },   { emoji: '🎼', name: 'Conductor' },
-  { emoji: '🦟', name: 'Mosquito' },  { emoji: '🦓', name: 'Zebra' },
-  { emoji: '🦏', name: 'Rhino' },    { emoji: '🦙', name: 'Llama' },
-  { emoji: '🦛', name: 'Hippo' },    { emoji: '🦘', name: 'Kangaroo' },
-  { emoji: '🦔', name: 'Hedgehog' }, { emoji: '🐝', name: 'Bee' },
-  { emoji: '🦇', name: 'Bat' },      { emoji: '🦚', name: 'Peacock' },
-  { emoji: '🐨', name: 'Koala' },    { emoji: '🔥', name: 'Inferno' },
-  { emoji: '⚡', name: 'Bolt' },     { emoji: '🐎', name: 'Horse' },
-  { emoji: '🐪', name: 'Camel' },    { emoji: '🎯', name: 'Bullseye' },
-  { emoji: '🐆', name: 'Cheetah' },  { emoji: '🦃', name: 'Turkey' },
-  { emoji: '🦢', name: 'Swan' },     { emoji: '🕊️', name: 'Dove' },
-  { emoji: '🦡', name: 'Badger' },   { emoji: '🐇', name: 'Rabbit' },
-  { emoji: '🐿️', name: 'Chipmunk' }, { emoji: '🐈', name: 'Cat' },
-  { emoji: '🐕', name: 'Dog' },      { emoji: '🐐', name: 'Goat' },
-  { emoji: '🦑', name: 'Squid' },    { emoji: '🦞', name: 'Lobster' },
-  { emoji: '🐌', name: 'Snail' },    { emoji: '🐞', name: 'Ladybug' },
-  { emoji: '🦂', name: 'Scorpion' }, { emoji: '🕷️', name: 'Spider' },
-  { emoji: '🦎', name: 'Lizard' },   { emoji: '🐍', name: 'Snake' },
-  { emoji: '🐢', name: 'Turtle' },   { emoji: '🦕', name: 'Sauropod' },
-  { emoji: '🦖', name: 'T-Rex' },    { emoji: '🧚', name: 'Fairy' },
-  { emoji: '👹', name: 'Ogre' },     { emoji: '👺', name: 'Goblin' },
-  { emoji: '👻', name: 'Spook' },    { emoji: '👾', name: 'Alien' },
-  { emoji: '🎃', name: 'Pumpkin' },  { emoji: '💎', name: 'Gem' },
-  { emoji: '🔱', name: 'Trident' },  { emoji: '⚓', name: 'Anchor' },
-  { emoji: '🌋', name: 'Volcano' },  { emoji: '☄️', name: 'Comet' },
-  { emoji: '❄️', name: 'Frost' },    { emoji: '🌪️', name: 'Cyclone' },
-  { emoji: '🧲', name: 'Magnet' },   { emoji: '🦠', name: 'Microbe' },
-  { emoji: '🐓', name: 'Rooster' },  { emoji: '🧸', name: 'Teddy' },
-  { emoji: '🌈', name: 'Rainbow' },  { emoji: '🐹', name: 'Hamster' },
+  { emoji: '🧙', name: '法师' },     { emoji: '🐗', name: '野猪' },
+  { emoji: '🏹', name: '弓箭手' },   { emoji: '🛡️', name: '骑士' },
+  { emoji: '🔮', name: '预言家' },   { emoji: '🗡️', name: '刺客' },
+  { emoji: '🦊', name: '狐狸' },     { emoji: '🐺', name: '恶狼' },
+  { emoji: '🦅', name: '雄鹰' },     { emoji: '🧝', name: '精灵' },
+  { emoji: '🤺', name: '剑客' },     { emoji: '🧛', name: '吸血鬼' },
+  { emoji: '🧟', name: '幽灵' },     { emoji: '🧜', name: '美人鱼' },
+  { emoji: '🎭', name: '小丑' },     { emoji: '👑', name: '国王' },
+  { emoji: '🐉', name: '神龙' },     { emoji: '🦁', name: '雄狮' },
+  { emoji: '🐻', name: '大熊' },     { emoji: '🦄', name: '独角兽' },
+  { emoji: '🐙', name: '章鱼' },     { emoji: '🦝', name: '浣熊' },
+  { emoji: '🐧', name: '企鹅' },     { emoji: '🦋', name: '蝴蝶' },
+  { emoji: '🐸', name: '青蛙' },     { emoji: '🦩', name: '火烈鸟' },
+  { emoji: '🐯', name: '老虎' },     { emoji: '🦀', name: '螃蟹' },
+  { emoji: '🦜', name: '鹦鹉' },     { emoji: '🐳', name: '鲸鱼' },
+  { emoji: '🦈', name: '鲨鱼' },     { emoji: '🤖', name: '机器人' },
+  { emoji: '🧞', name: '灯神' },     { emoji: '🦸', name: '英雄' },
+  { emoji: '🐊', name: '鳄鱼' },     { emoji: '🦉', name: '猫头鹰' },
+  { emoji: '🐬', name: '海豚' },     { emoji: '🦦', name: '水獭' },
+  { emoji: '🐘', name: '大象' },     { emoji: '🐒', name: '猴子' },
+  { emoji: '🦒', name: '长颈鹿' },   { emoji: '🦌', name: '梅花鹿' },
+  { emoji: '🧪', name: '测试员' },   { emoji: '🎼', name: '指挥家' },
+  { emoji: '🦟', name: '蚊子' },     { emoji: '🦓', name: '斑马' },
+  { emoji: '🦏', name: '犀牛' },     { emoji: '🦙', name: '羊驼' },
+  { emoji: '🦛', name: '河马' },     { emoji: '🦘', name: '袋鼠' },
+  { emoji: '🦔', name: '刺猬' },     { emoji: '🐝', name: '小蜜蜂' },
+  { emoji: '🦇', name: '蝙蝠' },     { emoji: '🦚', name: '孔雀' },
+  { emoji: '🐨', name: '考拉' },     { emoji: '🔥', name: '烈焰' },
+  { emoji: '⚡', name: '闪电' },     { emoji: '🐎', name: '骏马' },
+  { emoji: '🐪', name: '骆驼' },     { emoji: '🎯', name: '神射手' },
+  { emoji: '🐆', name: '猎豹' },     { emoji: '🦃', name: '火鸡' },
+  { emoji: '🦢', name: '天鹅' },     { emoji: '🕊️', name: '白鸽' },
+  { emoji: '🦡', name: '獾' },       { emoji: '🐇', name: '兔子' },
+  { emoji: '🐿️', name: '花栗鼠' },   { emoji: '🐈', name: '猫咪' },
+  { emoji: '🐕', name: '狗子' },     { emoji: '🐐', name: '山羊' },
+  { emoji: '🦑', name: '鱿鱼' },     { emoji: '🦞', name: '龙虾' },
+  { emoji: '🐌', name: '蜗牛' },     { emoji: '🐞', name: '瓢虫' },
+  { emoji: '🦂', name: '蝎子' },     { emoji: '🕷️', name: '蜘蛛' },
+  { emoji: '🦎', name: '蜥蜴' },     { emoji: '🐍', name: '蛇' },
+  { emoji: '🐢', name: '乌龟' },     { emoji: '🦕', name: '腕龙' },
+  { emoji: '🦖', name: '霸王龙' },   { emoji: '🧚', name: '小仙女' },
+  { emoji: '👹', name: '食人魔' },   { emoji: '👺', name: '哥布林' },
+  { emoji: '👻', name: '幽魂' },     { emoji: '👾', name: '外星人' },
+  { emoji: '🎃', name: '南瓜' },     { emoji: '💎', name: '宝石' },
+  { emoji: '🔱', name: '三叉戟' },   { emoji: '⚓', name: '船锚' },
+  { emoji: '🌋', name: '火山' },     { emoji: '☄️', name: '彗星' },
+  { emoji: '❄️', name: '冰霜' },     { emoji: '🌪️', name: '龙卷风' },
+  { emoji: '🧲', name: '磁铁' },     { emoji: '🦠', name: '细菌' },
+  { emoji: '🐓', name: '公鸡' },     { emoji: '🧸', name: '泰迪熊' },
+  { emoji: '🌈', name: '彩虹' },     { emoji: '🐹', name: '仓鼠' },
 ];
 
 // ═══════════════════ GLOBAL STATE ═══════════════════
@@ -68,29 +68,29 @@ const App = {
 // ═══════════════════ SETTINGS SCHEMA (client-side) ═══════════════════
 const SETTINGS_SCHEMA = {
   scribble: [
-    { id: 'drawTime', label: 'Draw Time', default: 45, isTime: true,
-      options: [{v:40,l:'40 sec'},{v:60,l:'60 sec'},{v:80,l:'80 sec ★'},{v:100,l:'100 sec'},{v:120,l:'2 min'}] },
-    { id: 'rounds', label: 'Rounds', default: 3,
-      options: [{v:2,l:'2 rounds'},{v:3,l:'3 rounds ★'},{v:4,l:'4 rounds'},{v:5,l:'5 rounds'}] },
-    { id: 'wordChoices', label: 'Word Choices per Turn', default: 3,
-      options: [{v:2,l:'2 words'},{v:3,l:'3 words ★'},{v:4,l:'4 words'}] },
+    { id: 'drawTime', label: '绘画时间', default: 45, isTime: true,
+      options: [{v:40,l:'40 秒'},{v:60,l:'60 秒'},{v:80,l:'80 秒 ★'},{v:100,l:'100 秒'},{v:120,l:'2 分钟'}] },
+    { id: 'rounds', label: '游戏轮数', default: 3,
+      options: [{v:2,l:'2 轮'},{v:3,l:'3 轮 ★'},{v:4,l:'4 轮'},{v:5,l:'5 轮'}] },
+    { id: 'wordChoices', label: '每轮备选词数', default: 3,
+      options: [{v:2,l:'2 个词'},{v:3,l:'3 个词 ★'},{v:4,l:'4 个词'}] },
   ],
   killerdoctor: [
-    { id: 'discussionTime', label: 'Discussion Time', default: 45, isTime: true,
-      options: [{v:60,l:'1 min'},{v:90,l:'90 sec'},{v:120,l:'2 min ★'},{v:150,l:'2.5 min'},{v:180,l:'3 min'}] },
-    { id: 'votingTime', label: 'Voting Time', default: 45, isTime: true,
-      options: [{v:30,l:'30 sec'},{v:45,l:'45 sec'},{v:60,l:'60 sec ★'},{v:90,l:'90 sec'}] },
+    { id: 'discussionTime', label: '讨论时间', default: 45, isTime: true,
+      options: [{v:60,l:'1 分钟'},{v:90,l:'90 秒'},{v:120,l:'2 分钟 ★'},{v:150,l:'2 分半'},{v:180,l:'3 分钟'}] },
+    { id: 'votingTime', label: '投票时间', default: 45, isTime: true,
+      options: [{v:30,l:'30 秒'},{v:45,l:'45 秒'},{v:60,l:'60 秒 ★'},{v:90,l:'90 秒'}] },
   ],
   tictactoe: [
-    { id: 'bestOf', label: 'Match Format', default: 0,
-      options: [{v:0,l:'Free Play ★'},{v:3,l:'Best of 3'},{v:5,l:'Best of 5'},{v:7,l:'Best of 7'}] },
+    { id: 'bestOf', label: '比赛赛制', default: 0,
+      options: [{v:0,l:'自由对战 ★'},{v:3,l:'三局两胜'},{v:5,l:'五局三胜'},{v:7,l:'七局四胜'}] },
   ],
   uno: [],
   quiz: [
-    { id: 'numQuestions', label: 'Questions', default: 15,
-      options: [{v:10,l:'10 questions'},{v:15,l:'15 questions ★'},{v:20,l:'20 questions'},{v:25,l:'25 questions'}] },
-    { id: 'timePerQuestion', label: 'Time per Question', default: 20,
-      options: [{v:10,l:'10 sec'},{v:15,l:'15 sec'},{v:20,l:'20 sec ★'},{v:30,l:'30 sec'}] },
+    { id: 'numQuestions', label: '题目数量', default: 15,
+      options: [{v:10,l:'10 道题'},{v:15,l:'15 道题 ★'},{v:20,l:'20 道题'},{v:25,l:'25 道题'}] },
+    { id: 'timePerQuestion', label: '每题作答时间', default: 20,
+      options: [{v:10,l:'10 秒'},{v:15,l:'15 秒'},{v:20,l:'20 秒 ★'},{v:30,l:'30 秒'}] },
   ],
 };
 
@@ -119,12 +119,12 @@ function showCountdown() {
   overlay.id = 'game-countdown';
   overlay.className = 'countdown-overlay';
   document.body.appendChild(overlay);
-  const steps = ['3','2','1','GO!'];
+  const steps = ['3','2','1','开始！'];
   let i = 0;
   function step() {
     overlay.innerHTML = '';
     const el = document.createElement('div');
-    el.className = 'countdown-num' + (steps[i] === 'GO!' ? ' go' : '');
+    el.className = 'countdown-num' + (steps[i] === '开始！' ? ' go' : '');
     el.textContent = steps[i];
     overlay.appendChild(el);
     i++;
@@ -139,7 +139,7 @@ function showCountdown() {
 }
 
 function showConfirm(message, onConfirm, opts = {}) {
-  const { confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = opts;
+  const { confirmText = '确认', cancelText = '取消', danger = false } = opts;
   document.getElementById('confirm-modal')?.remove();
 
   const overlay = document.createElement('div');
@@ -268,7 +268,7 @@ function renderSettings(gameType, settings, isHost) {
       input.min = 10;
       input.max = 600;
       input.value = currentVal;
-      input.placeholder = 'seconds (10–600)';
+      input.placeholder = '单位：秒（10–600）';
       input.className = 'custom-time-input';
       wrap.appendChild(input);
     } else if (isHost) {
@@ -286,7 +286,7 @@ function renderSettings(gameType, settings, isHost) {
       const val = document.createElement('div');
       val.className = 'settings-val';
       if (field.isTime) {
-        val.textContent = `${currentVal}s`;
+        val.textContent = `${currentVal} 秒`;
       } else {
         const opt = field.options.find(o => +o.v === +currentVal);
         val.textContent = opt ? opt.l.replace(' ★','') : currentVal;
@@ -312,7 +312,7 @@ function saveSettings() {
       if (!isNaN(val) && val >= 10 && val <= 600) {
         newSettings[field.id] = val;
       } else {
-        showError('home-error', `${field.label}: enter a value between 10 and 600 seconds.`);
+        showError('home-error', `${field.label}：请输入 10 到 600 之间的秒数。`);
       }
     } else {
       newSettings[field.id] = el.value;
@@ -426,7 +426,7 @@ function initHome() {
     const activeCard = document.querySelector(`.game-card[data-game="${urlGame}"]`);
     if (activeCard) {
       activeCard.classList.add('selected', 'game-card-locked');
-      document.querySelector('.game-selector h2').textContent = 'Joining game';
+      document.querySelector('.game-selector h2').textContent = '正在加入游戏';
     }
   }
 
@@ -464,7 +464,7 @@ function initHome() {
 
   document.getElementById('btn-create')?.addEventListener('click', () => {
     const name = document.getElementById('inp-name').value.trim();
-    if (!name) { showError('home-error', 'Please enter your name.'); return; }
+    if (!name) { showError('home-error', '先给自己起个名字吧！'); return; }
     App.myName = name;
     showLoading(true);
     App.socket.emit('room:create', { gameType: App.selectedGame, playerName: name, avatar: App.myAvatar });
@@ -483,8 +483,8 @@ function initHome() {
 function doJoin() {
   const name = document.getElementById('inp-name').value.trim();
   const code = document.getElementById('inp-code').value.trim().toUpperCase();
-  if (!name) { showError('home-error', 'Please enter your name.'); return; }
-  if (!code) { showError('home-error', 'Please enter a room code.'); return; }
+  if (!name) { showError('home-error', '先给自己起个名字吧！'); return; }
+  if (!code) { showError('home-error', '请输入房间代码！'); return; }
   App.myName = name;
   showLoading(true);
   App.socket.emit('room:join', { code, playerName: name, avatar: App.myAvatar });
@@ -506,19 +506,19 @@ function fallbackCopy(text, msg) {
   document.body.appendChild(el);
   el.focus(); el.select();
   try { document.execCommand('copy'); toast(msg); }
-  catch { toast('Copy failed — code: ' + text, 4000, 'error'); }
+  catch { toast('复制失败，请手动输入房间代码：' + text, 4000, 'error'); }
   el.remove();
 }
 
 // ═══════════════════ LOBBY ═══════════════════
 function initLobby() {
   document.getElementById('btn-copy').addEventListener('click', () => {
-    copyText(App.roomCode, 'Room code copied!');
+    copyText(App.roomCode, '房间代码已复制！');
   });
 
   document.getElementById('btn-share').addEventListener('click', () => {
     const url = `${window.location.origin}${window.location.pathname}?code=${App.roomCode}&game=${App.gameType}`;
-    copyText(url, 'Invite link copied!');
+    copyText(url, '邀请链接已复制！');
   });
 
   document.getElementById('btn-leave').addEventListener('click', () => location.reload());
@@ -530,8 +530,8 @@ function renderLobby({ players, code, gameType, hostId, minPlayers, settings, se
   App.isHost = hostId === App.myId;
   App.currentSettings = settings || {};
 
-  const gameNames = { tictactoe: 'Tic Tac Toe', killerdoctor: 'Mongolpuri', scribble: 'Scribble', uno: 'UNO' };
-  document.getElementById('lobby-title').textContent = gameNames[gameType] || 'Lobby';
+  const gameNames = { tictactoe: '井字棋', killerdoctor: '谁是杀手', scribble: '你画我猜', uno: 'UNO', quiz: '快问快答' };
+  document.getElementById('lobby-title').textContent = gameNames[gameType] || '游戏大厅';
   document.getElementById('lobby-code').textContent = code;
 
   const grid = document.getElementById('lobby-players');
@@ -546,25 +546,25 @@ function renderLobby({ players, code, gameType, hostId, minPlayers, settings, se
     card.appendChild(av);
     const nameEl = document.createElement('div');
     nameEl.className = 'lobby-player-name';
-    nameEl.textContent = p.name + (p.id === App.myId ? ' (You)' : '');
+    nameEl.textContent = p.name + (p.id === App.myId ? ' (你)' : '');
     card.appendChild(nameEl);
-    if (p.isHost) { const cr = document.createElement('div'); cr.className = 'host-crown'; cr.textContent = '👑 Host'; card.appendChild(cr); }
+    if (p.isHost) { const cr = document.createElement('div'); cr.className = 'host-crown'; cr.textContent = '👑 房主'; card.appendChild(cr); }
     if (App.isHost && p.id !== App.myId) {
       const controls = document.createElement('div');
       controls.className = 'host-controls';
       const transferBtn = document.createElement('button');
       transferBtn.className = 'btn-host-ctrl';
-      transferBtn.title = 'Make host';
+      transferBtn.title = '转让房主';
       transferBtn.textContent = '👑';
       transferBtn.addEventListener('click', () => {
-        showConfirm(`Make ${p.name} the host?`, () => App.socket.emit('room:transfer_host', { playerId: p.id }), { confirmText: 'Make Host' });
+        showConfirm(`把房主转让给 ${p.name}？`, () => App.socket.emit('room:transfer_host', { playerId: p.id }), { confirmText: '转让' });
       });
       const kickBtn = document.createElement('button');
       kickBtn.className = 'btn-host-ctrl btn-kick-ctrl';
-      kickBtn.title = 'Kick player';
+      kickBtn.title = '踢出玩家';
       kickBtn.textContent = '🚫';
       kickBtn.addEventListener('click', () => {
-        showConfirm(`Kick ${p.name}?`, () => App.socket.emit('room:kick', { playerId: p.id }), { confirmText: 'Kick', danger: true });
+        showConfirm(`把 ${p.name} 踢出房间？`, () => App.socket.emit('room:kick', { playerId: p.id }), { confirmText: '踢出', danger: true });
       });
       controls.appendChild(transferBtn);
       controls.appendChild(kickBtn);
@@ -575,12 +575,12 @@ function renderLobby({ players, code, gameType, hostId, minPlayers, settings, se
 
   const enough = players.length >= minPlayers;
   document.getElementById('lobby-status').textContent = enough
-    ? `${players.length} players ready — host can start!`
-    : `Waiting for players… (${players.length}/${minPlayers} minimum)`;
+    ? `${players.length} 人已就位，房主可以开始啦！`
+    : `等人来齐…（当前 ${players.length} 人，至少 ${minPlayers} 人）`;
 
   const startBtn = document.getElementById('btn-start');
   startBtn.disabled = !enough || !App.isHost;
-  startBtn.textContent = App.isHost ? 'Start Game' : 'Waiting for host…';
+  startBtn.textContent = App.isHost ? '开始游戏' : '等房主开始…';
 
   renderSettings(gameType, settings, App.isHost);
   renderSessionStats(sessionStats);
@@ -599,7 +599,7 @@ function renderSessionStats(stats) {
     row.className = 'stats-row';
     row.innerHTML = `<span class="stats-rank">${medals[i] || (i + 1) + '.'}</span>` +
       `<span class="stats-name">${s.name}</span>` +
-      `<span class="stats-record">${s.wins}W / ${s.gamesPlayed}G</span>`;
+      `<span class="stats-record">${s.wins} 胜 / ${s.gamesPlayed} 场</span>`;
     body.appendChild(row);
   });
 }
@@ -629,7 +629,7 @@ App.socket.on('lobby:update', data => {
 App.socket.on('lobby:settings', settings => {
   App.currentSettings = settings;
   renderSettings(App.gameType, settings, App.isHost);
-  if (!App.isHost) toast('Host updated game settings');
+  if (!App.isHost) toast('房主改了游戏设置');
 });
 
 App.socket.on('notification', msg => toast(msg));
@@ -639,7 +639,7 @@ App.socket.on('game:back_to_lobby', () => showView('lobby'));
 App.socket.on('room:kicked', () => {
   showView('home');
   showLoading(false);
-  toast('You were removed from the room.', 4000, 'error');
+  toast('你被移出了房间。', 4000, 'error');
 });
 
 // Game start triggers

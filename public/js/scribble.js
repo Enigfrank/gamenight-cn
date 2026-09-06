@@ -23,7 +23,7 @@ const Scribble = (() => {
     document.getElementById('scb-btn-again').addEventListener('click', () => App.socket.emit('game:restart'));
     document.getElementById('scb-btn-lobby').addEventListener('click', () => App.socket.emit('game:back_to_lobby'));
     document.getElementById('scb-btn-exit').addEventListener('click', () => {
-      showConfirm('Exit the game? You will leave the room.', () => location.reload(), { confirmText: 'Exit', danger: true });
+      showConfirm('确定要退出吗？退出后会离开房间。', () => location.reload(), { confirmText: '退出', danger: true });
     });
 
     App.socket.on('scribble:turn_start', onTurnStart);
@@ -287,7 +287,7 @@ const Scribble = (() => {
       av.textContent = p.name.slice(0,2).toUpperCase();
       const name = document.createElement('div');
       name.className = 'scb-pname';
-      name.textContent = (isDrawing ? '✏️ ' : '') + p.name + (p.id === App.myId ? ' (you)' : '');
+      name.textContent = (isDrawing ? '✏️ ' : '') + p.name + (p.id === App.myId ? ' (你)' : '');
       const score = document.createElement('div');
       score.className = 'scb-score';
       score.textContent = p.score || 0;
@@ -295,11 +295,11 @@ const Scribble = (() => {
       if (App.isHost && p.id !== App.myId) {
         const kickBtn = document.createElement('button');
         kickBtn.className = 'btn-host-ctrl btn-kick-ctrl scb-kick-btn';
-        kickBtn.title = `Kick ${p.name}`;
+        kickBtn.title = `踢出 ${p.name}`;
         kickBtn.textContent = '🚫';
         kickBtn.addEventListener('click', e => {
           e.stopPropagation();
-          showConfirm(`Kick ${p.name}?`, () => App.socket.emit('room:kick', { playerId: p.id }), { confirmText: 'Kick', danger: true });
+          showConfirm(`把 ${p.name} 踢出房间？`, () => App.socket.emit('room:kick', { playerId: p.id }), { confirmText: '踢出', danger: true });
         });
         item.appendChild(kickBtn);
       }
@@ -352,7 +352,7 @@ const Scribble = (() => {
   function onReconnect({ phase, drawerId, scores, drawingData, masked, players, round, maxRounds }) {
     myDrawerId = drawerId;
     setDrawerMode(drawerId === App.myId);
-    document.getElementById('scb-round-label').textContent = `Round ${round} / ${maxRounds}`;
+    document.getElementById('scb-round-label').textContent = `第 ${round} / ${maxRounds} 轮`;
     if (masked) setWordDisplay(masked);
     renderPlayers(players, drawerId);
     clearCanvas(false);
@@ -367,12 +367,12 @@ const Scribble = (() => {
     document.getElementById('scb-chat-messages').innerHTML = '';
     document.getElementById('scb-overlay-round-end').classList.add('hidden');
     document.getElementById('scb-overlay-guessed').classList.add('hidden');
-    document.getElementById('scb-round-label').textContent = `Round ${round} / ${maxRounds}`;
+    document.getElementById('scb-round-label').textContent = `第 ${round} / ${maxRounds} 轮`;
     renderPlayers(players, drawerId);
     setWordDisplay('');
     setDrawerMode(drawerId === App.myId);
     document.getElementById('scb-drawer-label').textContent =
-      drawerId === App.myId ? '✏️ Your turn to draw!' : `✏️ ${drawerName} is drawing`;
+      drawerId === App.myId ? '✏️ 轮到你大显身手了！' : `✏️ ${drawerName} 正在作画`;
     document.getElementById('scb-chat-input').disabled = drawerId === App.myId;
     clearInterval(timerInterval);
     document.getElementById('scb-timer').textContent = '–:––';
@@ -387,7 +387,7 @@ const Scribble = (() => {
     opts.innerHTML = '';
     let countdown = 15;
     const countEl = document.getElementById('scb-choose-countdown');
-    const t = setInterval(() => { countdown--; countEl.textContent = `Auto-selecting in ${countdown}s…`; if (countdown <= 0) clearInterval(t); }, 1000);
+    const t = setInterval(() => { countdown--; countEl.textContent = `${countdown} 秒后自动选词……`; if (countdown <= 0) clearInterval(t); }, 1000);
     words.forEach(w => {
       const btn = document.createElement('button');
       btn.className = 'scb-word-opt';
@@ -404,7 +404,7 @@ const Scribble = (() => {
   function onDrawStart({ word, masked, duration }) {
     document.getElementById('scb-word-chooser').classList.add('hidden');
     if (word) {
-      document.getElementById('scb-word-display').textContent = `Draw: ${word}`;
+      document.getElementById('scb-word-display').textContent = `请画：${word}`;
     } else {
       setWordDisplay(masked);
     }
@@ -413,7 +413,7 @@ const Scribble = (() => {
 
   function onGuessEvent({ playerId, playerName, correct, scores }) {
     if (correct) {
-      addChatMsg(null, `✅ ${playerName} guessed the word!`, 'system');
+      addChatMsg(null, `✅ ${playerName} 猜对了！`, 'system');
       const item = document.querySelector(`[data-player-id="${playerId}"]`);
       if (item) item.classList.add('guessed');
       // Update all scores from the scores map
@@ -440,7 +440,7 @@ const Scribble = (() => {
     hasGuessed = true;
     document.getElementById('scb-chat-input').disabled = true;
     const el = document.getElementById('scb-overlay-guessed');
-    el.textContent = `🎉 Correct! +${points} points`;
+    el.textContent = `🎉 猜对啦！+${points} 分`;
     el.classList.remove('hidden', 'scb-guess-pop');
     void el.offsetWidth;
     el.classList.add('scb-guess-pop');
@@ -485,7 +485,7 @@ const Scribble = (() => {
     players.forEach((p, i) => {
       const row = document.createElement('div');
       row.className = `overlay-score-item rank-${i+1}`;
-      row.innerHTML = `<span class="osi-rank">${i === 0 ? '🏆' : `#${i+1}`}</span><span class="osi-name">${p.name}${p.id === App.myId ? ' (you)' : ''}</span><span class="osi-pts">${scores[p.id]||0}</span>`;
+      row.innerHTML = `<span class="osi-rank">${i === 0 ? '🏆' : `#${i+1}`}</span><span class="osi-name">${p.name}${p.id === App.myId ? ' (你)' : ''}</span><span class="osi-pts">${scores[p.id]||0}</span>`;
       scoreList.appendChild(row);
     });
     document.getElementById('scb-btn-again').style.display = App.isHost ? 'inline-block' : 'none';
