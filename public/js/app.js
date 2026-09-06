@@ -325,24 +325,6 @@ function saveSettings() {
 }
 
 // ═══════════════════ AVATAR PICKER ═══════════════════
-const NAME_AVATARS = {
-  'abhijat': 11,   // 🧛 Vampire
-  'vikas': 49,     // 🦘 Kangaroo
-  'pranav': 75,    // 🕷️ Spider
-  'devaansh': 79,  // 🦕 Sauropod
-  'garima': 5,     // 🗡️ Rogue
-  'harshit': 39,   // 🐒 Monkey
-  'deepak': 7,     // 🐺 Wolf
-  'abhishek': 36,  // 🐬 Dolphin
-  'piyush': 26,    // 🐯 Tiger
-  'arnav': 8,      // 🦅 Eagle
-  'suryansh': 16,  // 🐉 Dragon
-  'priyanshi': 23, // 🦋 Butterfly
-  'khushhal': 20,  // 🐙 Octopus
-  'gays': 84,      // 👻 Spook
-  'sarath': 54,    // 🐨 Koala
-};
-
 function selectAvatar(idx) {
   App.myAvatar = idx;
   localStorage.setItem('gn_avatar', idx);
@@ -367,27 +349,12 @@ function closeAvatarModal() {
 }
 
 function getRandomFreeAvatar() {
-  const reserved = new Set(Object.values(NAME_AVATARS));
-  const free = AVATARS.map((_, i) => i).filter(i => !reserved.has(i));
-  return free[Math.floor(Math.random() * free.length)];
-}
-
-function updateAvatarAvailability() {
-  const key = document.getElementById('inp-name')?.value.trim().toLowerCase() || '';
-  const myMapped = NAME_AVATARS[key];
-  const reserved = new Set(Object.values(NAME_AVATARS));
-  if (myMapped !== undefined) reserved.delete(myMapped);
-  document.querySelectorAll('.avatar-opt').forEach((btn, i) => {
-    const locked = reserved.has(i);
-    btn.disabled = locked;
-    btn.classList.toggle('avatar-reserved', locked);
-  });
+  return Math.floor(Math.random() * AVATARS.length);
 }
 
 function initAvatarPicker() {
   const saved = parseInt(localStorage.getItem('gn_avatar') || '-1', 10);
-  const reservedSet = new Set(Object.values(NAME_AVATARS));
-  const savedOk = saved >= 0 && saved < AVATARS.length && !reservedSet.has(saved);
+  const savedOk = saved >= 0 && saved < AVATARS.length;
   App.myAvatar = savedOk ? saved : getRandomFreeAvatar();
 
   const grid = document.getElementById('avatar-picker');
@@ -402,7 +369,6 @@ function initAvatarPicker() {
   });
 
   selectAvatar(App.myAvatar);
-  updateAvatarAvailability();
 
   document.getElementById('btn-change-avatar').addEventListener('click', openAvatarModal);
   document.getElementById('avatar-modal-close').addEventListener('click', closeAvatarModal);
@@ -432,24 +398,11 @@ function initHome() {
 
   const savedName = localStorage.getItem('gn_name') || '';
   if (savedName) {
-    const inp = document.getElementById('inp-name');
-    inp.value = savedName;
-    const key = savedName.toLowerCase();
-    if (NAME_AVATARS[key] !== undefined) selectAvatar(NAME_AVATARS[key]);
-    updateAvatarAvailability();
+    document.getElementById('inp-name').value = savedName;
   }
 
-  document.getElementById('inp-name').addEventListener('input', () => {
-    const val = document.getElementById('inp-name').value.trim();
-    localStorage.setItem('gn_name', val);
-    const key = val.toLowerCase();
-    if (NAME_AVATARS[key] !== undefined) {
-      selectAvatar(NAME_AVATARS[key]);
-    } else {
-      const reserved = new Set(Object.values(NAME_AVATARS));
-      if (reserved.has(App.myAvatar)) selectAvatar(getRandomFreeAvatar());
-    }
-    updateAvatarAvailability();
+  document.getElementById('inp-name').addEventListener('input', (e) => {
+    localStorage.setItem('gn_name', e.target.value.trim());
   });
 
   document.querySelectorAll('.game-card').forEach(card => {
