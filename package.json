@@ -1,7 +1,7 @@
 {
   "name": "gamenight",
   "version": "1.0.0",
-  "description": "Multiplayer party games — Tic Tac Toe, Killer Doctor, Scribble",
+  "description": "多人派对游戏",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

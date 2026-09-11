@@ -86,12 +86,6 @@ const SETTINGS_SCHEMA = {
       options: [{v:0,l:'自由对战 ★'},{v:3,l:'三局两胜'},{v:5,l:'五局三胜'},{v:7,l:'七局四胜'}] },
   ],
   uno: [],
-  quiz: [
-    { id: 'numQuestions', label: '题目数量', default: 15,
-      options: [{v:10,l:'10 道题'},{v:15,l:'15 道题 ★'},{v:20,l:'20 道题'},{v:25,l:'25 道题'}] },
-    { id: 'timePerQuestion', label: '每题作答时间', default: 20,
-      options: [{v:10,l:'10 秒'},{v:15,l:'15 秒'},{v:20,l:'20 秒 ★'},{v:30,l:'30 秒'}] },
-  ],
 };
 
 // ═══════════════════ VIEW MANAGEMENT ═══════════════════
@@ -483,7 +477,7 @@ function renderLobby({ players, code, gameType, hostId, minPlayers, settings, se
   App.isHost = hostId === App.myId;
   App.currentSettings = settings || {};
 
-  const gameNames = { tictactoe: '井字棋', killerdoctor: '谁是杀手', scribble: '你画我猜', uno: 'UNO', quiz: '快问快答' };
+  const gameNames = { tictactoe: '井字棋', killerdoctor: '谁是杀手', scribble: '你画我猜', uno: 'UNO' };
   document.getElementById('lobby-title').textContent = gameNames[gameType] || '游戏大厅';
   document.getElementById('lobby-code').textContent = code;
 
@@ -607,8 +601,6 @@ App.socket.on('uno:state',       data  => { showView('uno');         UNO.onState
 App.socket.on('uno:hand',        data  =>   UNO.onHand(data));
 App.socket.on('uno:choose_color',()    =>   UNO.onChooseColor());
 App.socket.on('uno:game_over',   data  =>   UNO.onGameOver(data));
-App.socket.on('quiz:state',      data  => { showView('quiz');        QUIZ.onState(data); });
-App.socket.on('quiz:answered',   data  =>   QUIZ.onAnswered(data));
 App.socket.on('kd:reconnect',    data  => {
   if (data.avatar !== undefined) App.myAvatar = data.avatar;
   showView('killerdoctor');
@@ -626,5 +618,4 @@ document.addEventListener('DOMContentLoaded', () => {
   KillerDoctor.init();
   Scribble.init();
   UNO.init();
-  QUIZ.init();
 });

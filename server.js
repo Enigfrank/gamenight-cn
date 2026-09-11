@@ -2,12 +2,22 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 const os = require('os');
 const { Bonjour } = require('bonjour-service');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+// 应用版本号取自 package.json，渲染首页时替换 HTML 中的 __APP_VERSION__ 占位符
+const APP_VERSION = require('./package.json').version;
+
+app.get(['/', '/index.html'], (req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+    .replace('__APP_VERSION__', APP_VERSION);
+  res.type('html').send(html);
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -22,7 +32,6 @@ function defaultSettings(gameType) {
     case 'killerdoctor': return { discussionTime: 45, votingTime: 45, nightTime: 45 };
     case 'tictactoe':    return { bestOf: 0 };
     case 'uno':          return {};
-    case 'quiz':         return { numQuestions: 15, timePerQuestion: 20 };
     default:             return {};
   }
 }
@@ -45,10 +54,6 @@ function validateSettings(incoming, gameType) {
     case 'tictactoe':
       if ([0,3,5,7].includes(n('bestOf')))      out.bestOf = n('bestOf');
       break;
-    case 'quiz':
-      if ([10,15,20,25].includes(n('numQuestions')))  out.numQuestions    = n('numQuestions');
-      if ([10,15,20,30].includes(n('timePerQuestion'))) out.timePerQuestion = n('timePerQuestion');
-      break;
   }
   return out;
 }
@@ -65,7 +70,7 @@ function uniqueCode() { let c; do { c = genCode(); } while (rooms.has(c)); retur
 function getRoom(sid) { const code = playerRooms.get(sid); return code ? rooms.get(code) : null; }
 function clearTimers(room) { (room.timers||[]).forEach(clearTimeout); room.timers = []; }
 function addTimer(room, fn, ms) { if (!room.timers) room.timers = []; const t = setTimeout(fn, ms); room.timers.push(t); return t; }
-function minPlayers(g) { return { tictactoe: 2, killerdoctor: 4, scribble: 3, uno: 2, quiz: 2 }[g] ?? 2; }
+function minPlayers(g) { return { tictactoe: 2, killerdoctor: 4, scribble: 3, uno: 2 }[g] ?? 2; }
 
 function broadcastLobby(room) {
   io.to(room.code).emit('lobby:update', {
@@ -194,7 +199,7 @@ io.on('connection', socket => {
     }
     room.status = 'playing';
     io.to(room.code).emit('game:starting');
-    addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, uno: startUno, quiz: startQuiz })[room.gameType]?.(room), 3200);
+    addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, uno: startUno })[room.gameType]?.(room), 3200);
   });
 
   socket.on('game:action', data => {
@@ -277,12 +282,6 @@ function sendReconnectState(room, socket) {
       socket.emit('uno:state', unoPublic(gs));
       if (gs.hands[socket.id]) socket.emit('uno:hand', { hand: gs.hands[socket.id] });
       break;
-    case 'quiz':
-      if (gs.phase === 'loading') { socket.emit('quiz:state', { phase: 'loading' }); break; }
-      socket.emit('quiz:state', quizPublic(gs, room));
-      if (gs.phase === 'question' && gs.answers[socket.id])
-        socket.emit('quiz:answered', { answer: gs.answers[socket.id].answer });
-      break;
   }
 }
 
@@ -291,7 +290,7 @@ function restartGame(room) {
   room.status = 'playing';
   room.gameState = null;
   io.to(room.code).emit('game:starting');
-  addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, uno: startUno, quiz: startQuiz })[room.gameType]?.(room), 3200);
+  addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, uno: startUno })[room.gameType]?.(room), 3200);
 }
 
 function handleAction(room, socket, data) {
@@ -304,7 +303,6 @@ function handleAction(room, socket, data) {
     case 'killerdoctor': kdAction(room, socket, data); break;
     case 'scribble':     scribbleAction(room, socket, data); break;
     case 'uno':          unoAction(room, socket, data); break;
-    case 'quiz':         quizAction(room, socket, data); break;
   }
 }
 
@@ -377,15 +375,6 @@ function onPlayerDisconnect(room, sid, name) {
       if (!gs.drawerOrder.length || nonDrawers.length === 0) { clearTimers(room); endScribbleGame(room); }
       else if ((gs.phase === 'drawing' || gs.phase === 'choosing') && sid === gs.drawerOrder[gs.drawerIndex]) {
         clearTimers(room); endScribbleRound(room, false);
-      }
-      break;
-    }
-    case 'quiz': {
-      delete gs.scores[sid];
-      delete gs.correctCounts?.[sid];
-      if (gs.phase === 'question' && room.players.size > 0) {
-        const answered = [...room.players.keys()].filter(id => gs.answers[id]).length;
-        if (answered >= room.players.size) { clearTimers(room); quizReveal(room); }
       }
       break;
     }
@@ -1205,147 +1194,6 @@ function endUno(room, winnerId) {
     scores: Object.fromEntries(gs.playerOrder.map(id => [id, gs.hands[id]?.length ?? 0])),
     players: gs.players,
   });
-}
-
-// ─────────────────────────── QUIZ ───────────────────────────
-
-const QUIZ_REVEAL_MS = 4000;
-
-async function fetchQuizQuestions(n = 15) {
-  const decode = s => decodeURIComponent(s);
-  const diffOrder = { easy: 0, medium: 1, hard: 2 };
-  for (let attempt = 0; attempt < 4; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, 6000));
-    const res = await fetch(`https://opentdb.com/api.php?amount=${n}&type=multiple&encode=url3986`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.response_code === 5) continue;
-    if (json.response_code !== 0) throw new Error(`OpenTDB code ${json.response_code}`);
-    return json.results
-      .sort((a, b) => (diffOrder[a.difficulty] ?? 0) - (diffOrder[b.difficulty] ?? 0))
-      .map(q => {
-        const options = [decode(q.correct_answer), ...q.incorrect_answers.map(decode)];
-        for (let i = options.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [options[i], options[j]] = [options[j], options[i]];
-        }
-        return { question: decode(q.question), correctAnswer: decode(q.correct_answer), options, difficulty: q.difficulty };
-      });
-  }
-  throw new Error('Rate limited after retries');
-}
-
-async function startQuiz(room) {
-  if (room.status !== 'playing') return;
-  const numQ        = room.settings?.numQuestions    ?? 15;
-  const timeLimitMs = (room.settings?.timePerQuestion ?? 20) * 1000;
-  const scores = {};
-  const correctCounts = {};
-  [...room.players.keys()].forEach(id => { scores[id] = 0; correctCounts[id] = 0; });
-  room.gameState = { type: 'quiz', questions: [], currentQ: 0, phase: 'loading', answers: {}, results: null, scores, correctCounts, timeLimitMs, questionStartTime: 0 };
-  io.to(room.code).emit('quiz:state', { phase: 'loading' });
-  try {
-    const questions = await fetchQuizQuestions(numQ);
-    if (room.status !== 'playing') return;
-    room.gameState.questions = questions;
-    room.gameState.phase = 'question';
-    room.gameState.questionStartTime = Date.now();
-    io.to(room.code).emit('quiz:state', quizPublic(room.gameState, room));
-    addTimer(room, () => quizReveal(room), timeLimitMs);
-  } catch (e) {
-    console.error('Quiz start failed:', e);
-    if (rooms.has(room.code)) {
-      room.status = 'lobby';
-      io.to(room.code).emit('game:back_to_lobby');
-      io.to(room.code).emit('notification', '题目加载失败——看看你的网络是不是断了。');
-      broadcastLobby(room);
-    }
-  }
-}
-
-function quizPublic(gs, room) {
-  const q = gs.questions[gs.currentQ];
-  return {
-    phase: gs.phase,
-    questionIndex: gs.currentQ,
-    totalQuestions: gs.questions.length,
-    difficulty: q.difficulty,
-    question: q.question,
-    options: q.options,
-    timeLimitMs: gs.timeLimitMs,
-    startedAt: gs.questionStartTime,
-    answersIn: Object.keys(gs.answers).length,
-    totalPlayers: room.players.size,
-    correctAnswer: gs.phase === 'question' ? null : q.correctAnswer,
-    results: gs.phase === 'question' ? null : gs.results,
-    scores: gs.scores,
-    correctCounts: gs.correctCounts,
-    players: Object.fromEntries([...room.players.values()].map(p => [p.id, { name: p.name, avatar: p.avatar ?? 0 }])),
-  };
-}
-
-function quizAction(room, socket, data) {
-  const gs = room.gameState;
-  if (!gs || gs.phase !== 'question' || gs.answers[socket.id]) return;
-  if (data.action !== 'answer') return;
-  const answer = String(data.answer);
-  const q = gs.questions[gs.currentQ];
-  if (!q.options.includes(answer)) return;
-  gs.answers[socket.id] = { answer, timeMs: Date.now() - gs.questionStartTime };
-  socket.emit('quiz:answered', { answer });
-  io.to(room.code).emit('quiz:state', quizPublic(gs, room));
-  const answered = [...room.players.keys()].filter(id => gs.answers[id]).length;
-  if (answered >= room.players.size) { clearTimers(room); quizReveal(room); }
-}
-
-function quizReveal(room) {
-  const gs = room.gameState;
-  if (!gs || gs.phase !== 'question') return;
-  const q = gs.questions[gs.currentQ];
-
-  const byTime = [...room.players.keys()]
-    .filter(id => gs.answers[id]?.answer === q.correctAnswer)
-    .sort((a, b) => gs.answers[a].timeMs - gs.answers[b].timeMs);
-  const firstCorrectId = byTime[0] ?? null;
-
-  const results = {};
-  [...room.players.keys()].forEach(id => {
-    const ans = gs.answers[id];
-    const correct = ans?.answer === q.correctAnswer;
-    let points = 0;
-    if (correct) {
-      const elapsed = Math.min(ans.timeMs, gs.timeLimitMs);
-      points = Math.round(500 + 500 * (1 - elapsed / gs.timeLimitMs));
-      if (id === firstCorrectId) points += 200;
-      gs.correctCounts[id] = (gs.correctCounts[id] || 0) + 1;
-    }
-    if (gs.scores[id] !== undefined) gs.scores[id] += points;
-    results[id] = { answer: ans?.answer ?? null, correct, points, firstCorrect: id === firstCorrectId && correct };
-  });
-  gs.results = results;
-  gs.phase = 'reveal';
-  io.to(room.code).emit('quiz:state', quizPublic(gs, room));
-  const isLast = gs.currentQ >= gs.questions.length - 1;
-  addTimer(room, () => isLast ? endQuiz(room) : advanceQuiz(room), QUIZ_REVEAL_MS);
-}
-
-function advanceQuiz(room) {
-  const gs = room.gameState;
-  gs.currentQ++;
-  gs.answers = {};
-  gs.results = null;
-  gs.phase = 'question';
-  gs.questionStartTime = Date.now();
-  io.to(room.code).emit('quiz:state', quizPublic(gs, room));
-  addTimer(room, () => quizReveal(room), gs.timeLimitMs);
-}
-
-function endQuiz(room) {
-  const gs = room.gameState;
-  gs.phase = 'gameover';
-  const players = [...room.players.values()];
-  recordResult(room, [players.sort((a, b) => (gs.scores[b.id] || 0) - (gs.scores[a.id] || 0))[0]?.id], players.map(p => p.id));
-  io.to(room.code).emit('quiz:state', quizPublic(gs, room));
 }
 
 // ─────────────────────────── START ───────────────────────────
