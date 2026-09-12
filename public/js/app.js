@@ -85,6 +85,14 @@ const SETTINGS_SCHEMA = {
     { id: 'bestOf', label: '比赛赛制', default: 0,
       options: [{v:0,l:'自由对战 ★'},{v:3,l:'三局两胜'},{v:5,l:'五局三胜'},{v:7,l:'七局四胜'}] },
   ],
+  gomoku: [
+    { id: 'boardSize', label: '棋盘大小', default: 15,
+      options: [{v:13,l:'13 × 13'},{v:15,l:'15 × 15（标准） ★'},{v:19,l:'19 × 19'}] },
+    { id: 'mode', label: '对战模式', default: 'pvp',
+      options: [{v:'pvp',l:'人人对战 ★'},{v:'pve',l:'人机对战（1 人即可）'}] },
+    { id: 'aiDifficulty', label: 'AI 难度（人机模式）', default: 'normal',
+      options: [{v:'easy',l:'简单'},{v:'normal',l:'普通 ★'},{v:'hard',l:'困难'}] },
+  ],
   uno: [],
 };
 
@@ -272,7 +280,8 @@ function renderSettings(gameType, settings, isHost) {
         const o = document.createElement('option');
         o.value = opt.v;
         o.textContent = opt.l;
-        if (+opt.v === +currentVal) o.selected = true;
+        // 字符串型选项（如 pvp/pve）不能用数值强转比较
+        if (String(opt.v) === String(currentVal)) o.selected = true;
         sel.appendChild(o);
       });
       wrap.appendChild(sel);
@@ -282,7 +291,7 @@ function renderSettings(gameType, settings, isHost) {
       if (field.isTime) {
         val.textContent = `${currentVal} 秒`;
       } else {
-        const opt = field.options.find(o => +o.v === +currentVal);
+        const opt = field.options.find(o => String(o.v) === String(currentVal));
         val.textContent = opt ? opt.l.replace(' ★','') : currentVal;
       }
       wrap.appendChild(val);
@@ -477,7 +486,7 @@ function renderLobby({ players, code, gameType, hostId, minPlayers, settings, se
   App.isHost = hostId === App.myId;
   App.currentSettings = settings || {};
 
-  const gameNames = { tictactoe: '井字棋', killerdoctor: '谁是杀手', scribble: '你画我猜', uno: 'UNO' };
+  const gameNames = { tictactoe: '井字棋', gomoku: '五子棋', killerdoctor: '谁是杀手', scribble: '你画我猜', uno: 'UNO' };
   document.getElementById('lobby-title').textContent = gameNames[gameType] || '游戏大厅';
   document.getElementById('lobby-code').textContent = code;
 
@@ -595,6 +604,9 @@ App.socket.on('ttt:state',        data  => { showView('tictactoe');    TicTacToe
 App.socket.on('ttt:symbol',       data  =>   TicTacToe.onSymbol(data));
 App.socket.on('ttt:player_left',  data  =>   TicTacToe.onPlayerLeft(data));
 App.socket.on('ttt:tournament_state', data => { showView('tictactoe'); });  // handled inside TicTacToe module
+App.socket.on('gk:state',        data  => { showView('gomoku');      Gomoku.onState(data); });
+App.socket.on('gk:color',        data  =>   Gomoku.onColor(data));
+App.socket.on('gk:player_left',  data  =>   Gomoku.onPlayerLeft(data));
 App.socket.on('scribble:game_start', data => { showView('scribble');  Scribble.onStart(data); });
 App.socket.on('scribble:reconnect',  data => { showView('scribble');  Scribble.onReconnect(data); });
 App.socket.on('uno:state',       data  => { showView('uno');         UNO.onState(data); });
@@ -645,6 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initRulesModal();
   initSettings();
   TicTacToe.init();
+  Gomoku.init();
   KillerDoctor.init();
   Scribble.init();
   UNO.init();

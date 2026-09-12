@@ -1315,6 +1315,117 @@ input[type="range"] { accent-color: var(--color-primary); width: 100%; cursor: p
 .uno-score-val { color: var(--color-primary); font-weight: 700; font-size: var(--text-sm); }
 
 /* ============================================================
+   GOMOKU (五子棋)
+   棋盘在深/浅主题下均保持浅底，确保黑白棋子清晰可辨
+   ============================================================ */
+.gk-container { max-width: 600px; margin: 0 auto; padding: var(--space-8) var(--space-4); display: flex; flex-direction: column; }
+.gk-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+
+.gk-match-label {
+  align-self: center; text-align: center;
+  font-size: var(--text-xs); color: var(--color-primary); font-weight: 600;
+  letter-spacing: 0.08em; margin-bottom: var(--space-3); padding: 4px 12px;
+  background: var(--color-primary-soft); border-radius: 999px;
+}
+
+.gk-scoreboard { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); justify-content: center; }
+.gk-score-card {
+  flex: 1; background: var(--color-neutral-0); border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md); padding: var(--space-4); text-align: center; max-width: 200px;
+  transition: border-color var(--dur-ui) ease-out, box-shadow var(--dur-ui) ease-out;
+}
+.gk-score-card.active-turn { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-ring); }
+.gk-stone-head { display: flex; justify-content: center; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); min-height: 20px; }
+.gk-player-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-neutral-500); }
+.gk-vs { font-size: var(--text-base); font-weight: 700; color: var(--color-neutral-400); flex-shrink: 0; }
+.gk-ai-tag { font-size: var(--text-xs); font-weight: 700; color: var(--color-neutral-0); background: var(--color-primary); border-radius: var(--radius-sm); padding: 1px 6px; }
+
+.gk-disc { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+.gk-disc-black { background: var(--gk-stone-black, #111827); box-shadow: var(--shadow-1); }
+.gk-disc-white { background: var(--gk-stone-white, #ffffff); border: 1px solid var(--color-neutral-300); }
+
+.gk-status-bar {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 36px; padding: 10px; margin-bottom: var(--space-4);
+  font-size: var(--text-base); color: var(--color-neutral-500);
+}
+.gk-spinner {
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: 2px solid var(--color-neutral-300); border-top-color: var(--color-primary);
+  border-radius: 50%; animation: gk-spin 0.7s linear infinite;
+}
+@keyframes gk-spin { to { transform: rotate(360deg); } }
+
+.gk-board-wrap { display: flex; justify-content: center; margin-bottom: var(--space-6); }
+.gk-board {
+  --gk-board-bg: #f3f4f6;
+  --gk-board-line: #9ca3af;
+  --gk-stone-black: #111827;
+  --gk-stone-white: #ffffff;
+  position: relative; display: grid;
+  width: min(92vw, 560px); aspect-ratio: 1 / 1;
+  background: var(--gk-board-bg);
+  border: 1px solid var(--gk-board-line); border-radius: var(--radius-sm);
+  touch-action: manipulation;
+}
+.gk-board[data-size="13"] { grid-template-columns: repeat(13, 1fr); }
+.gk-board[data-size="15"] { grid-template-columns: repeat(15, 1fr); }
+.gk-board[data-size="19"] { grid-template-columns: repeat(19, 1fr); }
+
+.gk-cell {
+  position: relative; width: 100%; aspect-ratio: 1 / 1;
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 每格各画一条满宽横线与满高竖线，相邻格自然拼接成交叉线网 */
+.gk-cell::before, .gk-cell::after { content: ''; position: absolute; pointer-events: none; }
+.gk-cell::before { left: 0; right: 0; top: 50%; border-top: 1px solid var(--gk-board-line); }
+.gk-cell::after { top: 0; bottom: 0; left: 50%; border-left: 1px solid var(--gk-board-line); }
+
+.gk-star-dot {
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: var(--gk-board-line); z-index: 0;
+}
+
+.gk-preview {
+  position: absolute; inset: 12%; border-radius: 50%;
+  opacity: 0; z-index: 1; pointer-events: none;
+  transition: opacity var(--dur-fast) ease-out;
+}
+.gk-board.gk-locked .gk-cell { cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  .gk-board.gk-me-black:not(.gk-locked) .gk-cell:not(.gk-black):not(.gk-white):hover .gk-preview {
+    opacity: 0.35; background: var(--gk-stone-black);
+  }
+  .gk-board.gk-me-white:not(.gk-locked) .gk-cell:not(.gk-black):not(.gk-white):hover .gk-preview {
+    opacity: 0.9; background: var(--gk-stone-white); border: 1px solid var(--color-neutral-300);
+  }
+}
+
+.gk-stone { position: absolute; inset: 10%; border-radius: 50%; z-index: 2; pointer-events: none; }
+.gk-black .gk-stone { background: var(--gk-stone-black); box-shadow: var(--shadow-1); }
+.gk-white .gk-stone { background: var(--gk-stone-white); border: 1px solid var(--color-neutral-300); box-shadow: var(--shadow-1); }
+.gk-cell.gk-last .gk-stone { box-shadow: 0 0 0 2px var(--color-primary), var(--shadow-1); }
+.gk-cell.gk-win .gk-stone { box-shadow: 0 0 0 3px var(--color-primary), var(--shadow-2); }
+
+@keyframes gk-pop { from { transform: scale(0.4); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
+.gk-stone-pop { animation: gk-pop 0.18s var(--ease-out) both; }
+
+.gk-result {
+  background: var(--color-neutral-0); border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md); padding: var(--space-6); text-align: center;
+}
+#gk-result-text { font-size: var(--text-lg); font-weight: 600; margin-bottom: var(--space-4); }
+.gk-result-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 600px) {
+  .gk-container { padding: var(--space-4) var(--space-3); }
+  .gk-scoreboard { gap: var(--space-2); }
+  .gk-score-card { padding: var(--space-2); }
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 /* 窄屏时大厅/井字棋右上角操作按钮与固定主题按钮重叠，让出空间 */
@@ -1408,6 +1519,7 @@ input[type="range"] { accent-color: var(--color-primary); width: 100%; cursor: p
   .anim-pulse, .kd-tension, .kd-killer-spotlight, .scb-canvas-urgent { animation: none; }
   .kd-particle, .kd-ambient-star, .kd-vote-drop, .kd-action-burst-particle, .scb-burst-particle { animation-duration: 0.01ms; animation-iteration-count: 1; }
   .kd-phase.active, .avatar-opt-enter, .lobby-card-enter, .ttt-cell-pop, .scb-guess-pop,
-  .bracket-round-slide, .vote-reveal-stagger { animation-duration: 0.01ms; }
+  .bracket-round-slide, .vote-reveal-stagger, .gk-stone-pop { animation-duration: 0.01ms; }
   .ttt-shake { animation: none; }
+  .gk-spinner { animation: none; }
 }

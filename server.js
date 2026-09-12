@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { Bonjour } = require('bonjour-service');
+const GKAI = require('./gomoku-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -31,6 +32,7 @@ function defaultSettings(gameType) {
     case 'scribble':     return { drawTime: 45, rounds: 3, wordChoices: 3 };
     case 'killerdoctor': return { discussionTime: 45, votingTime: 45, nightTime: 45 };
     case 'tictactoe':    return { bestOf: 0 };
+    case 'gomoku':       return { boardSize: 15, mode: 'pvp', aiDifficulty: 'normal' };
     case 'uno':          return {};
     default:             return {};
   }
@@ -54,6 +56,11 @@ function validateSettings(incoming, gameType) {
     case 'tictactoe':
       if ([0,3,5,7].includes(n('bestOf')))      out.bestOf = n('bestOf');
       break;
+    case 'gomoku':
+      if ([13,15,19].includes(n('boardSize')))  out.boardSize = n('boardSize');
+      if (['pvp','pve'].includes(incoming.mode)) out.mode = incoming.mode;
+      if (['easy','normal','hard'].includes(incoming.aiDifficulty)) out.aiDifficulty = incoming.aiDifficulty;
+      break;
   }
   return out;
 }
@@ -70,7 +77,10 @@ function uniqueCode() { let c; do { c = genCode(); } while (rooms.has(c)); retur
 function getRoom(sid) { const code = playerRooms.get(sid); return code ? rooms.get(code) : null; }
 function clearTimers(room) { (room.timers||[]).forEach(clearTimeout); room.timers = []; }
 function addTimer(room, fn, ms) { if (!room.timers) room.timers = []; const t = setTimeout(fn, ms); room.timers.push(t); return t; }
-function minPlayers(g) { return { tictactoe: 2, killerdoctor: 4, scribble: 3, uno: 2 }[g] ?? 2; }
+function minPlayers(g, settings) {
+  if (g === 'gomoku') return settings?.mode === 'pve' ? 1 : 2;
+  return { tictactoe: 2, killerdoctor: 4, scribble: 3, uno: 2 }[g] ?? 2;
+}
 
 function broadcastLobby(room) {
   io.to(room.code).emit('lobby:update', {
@@ -78,7 +88,7 @@ function broadcastLobby(room) {
     code: room.code,
     gameType: room.gameType,
     hostId: room.host,
-    minPlayers: minPlayers(room.gameType),
+    minPlayers: minPlayers(room.gameType, room.settings),
     settings: room.settings,
     sessionStats: Object.keys(room.sessionStats || {}).length ? room.sessionStats : null,
   });
@@ -161,6 +171,8 @@ io.on('connection', socket => {
     const validated = validateSettings(newSettings, room.gameType);
     room.settings = { ...room.settings, ...validated };
     io.to(room.code).emit('lobby:settings', room.settings);
+    // 重新广播大厅：人数门槛等可能随设置变化（如五子棋人机模式 1 人即可开局）
+    broadcastLobby(room);
   });
 
   socket.on('room:kick', ({ playerId }) => {
@@ -193,13 +205,13 @@ io.on('connection', socket => {
   socket.on('game:start', () => {
     const room = getRoom(socket.id);
     if (!room || room.host !== socket.id || room.status !== 'lobby') return;
-    if (room.players.size < minPlayers(room.gameType)) {
-      socket.emit('room:error', { msg: `至少要 ${minPlayers(room.gameType)} 名玩家才能开局。` });
+    if (room.players.size < minPlayers(room.gameType, room.settings)) {
+      socket.emit('room:error', { msg: `至少要 ${minPlayers(room.gameType, room.settings)} 名玩家才能开局。` });
       return;
     }
     room.status = 'playing';
     io.to(room.code).emit('game:starting');
-    addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, uno: startUno })[room.gameType]?.(room), 3200);
+    addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, gomoku: startGK, uno: startUno })[room.gameType]?.(room), 3200);
   });
 
   socket.on('game:action', data => {
@@ -266,6 +278,13 @@ function sendReconnectState(room, socket) {
       }
       break;
     }
+    case 'gomoku': {
+      socket.emit('gk:state', gkPublic(gs));
+      const color = gs.players?.black.id === socket.id ? 'black'
+        : gs.players?.white.id === socket.id ? 'white' : null;
+      socket.emit('gk:color', { color });
+      break;
+    }
     case 'killerdoctor': {
       const pd = gs.playerData?.[socket.id];
       if (pd) socket.emit('kd:reconnect', { role: pd.role, phase: gs.phase, alive: pd.alive, avatar: pd.avatar ?? 0 });
@@ -290,7 +309,7 @@ function restartGame(room) {
   room.status = 'playing';
   room.gameState = null;
   io.to(room.code).emit('game:starting');
-  addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, uno: startUno })[room.gameType]?.(room), 3200);
+  addTimer(room, () => ({ tictactoe: startTTT, killerdoctor: startKD, scribble: startScribble, gomoku: startGK, uno: startUno })[room.gameType]?.(room), 3200);
 }
 
 function handleAction(room, socket, data) {
@@ -299,6 +318,10 @@ function handleAction(room, socket, data) {
     case 'tictactoe':
       if (data.action === 'move')     tttMove(room, socket, data.index);
       if (data.action === 'new_game' && room.gameState?.mode !== 'tournament') tttNewGame(room);
+      break;
+    case 'gomoku':
+      if (data.action === 'gk_move')    gkMove(room, socket, data.r, data.c);
+      if (data.action === 'new_game')   gkNewGame(room);
       break;
     case 'killerdoctor': kdAction(room, socket, data); break;
     case 'scribble':     scribbleAction(room, socket, data); break;
@@ -365,6 +388,12 @@ function onPlayerDisconnect(room, sid, name) {
         }
       } else if (gs.players?.X?.id === sid || gs.players?.O?.id === sid) {
         io.to(room.code).emit('ttt:player_left', { name });
+      }
+      break;
+    case 'gomoku':
+      // 人人对局中真人离场通知其余玩家；人机局 AI 思考定时器不受影响，玩家同名重连可续局
+      if (gs.mode !== 'pve' && (gs.players?.black.id === sid || gs.players?.white.id === sid)) {
+        io.to(room.code).emit('gk:player_left', { name });
       }
       break;
     case 'scribble': {
@@ -621,6 +650,128 @@ function tttPublic(gs) {
     winner: gs.winner, winLine: gs.winLine, winnerSymbol: gs.winnerSymbol,
     scores: gs.scores || {}, gameCount: gs.gameCount || 1,
     bestOf: gs.bestOf || 0, matchWinner: gs.matchWinner || null,
+  };
+}
+
+// ─────────────────────── GOMOKU (五子棋) ───────────────────────
+
+const GK_AI_ID = '__gomoku_ai__';
+const GK_AI_PLAYER = { id: GK_AI_ID, name: 'AI 机器人', isAI: true };
+
+/** 开局：人人随机定黑白；人机固定玩家执黑、AI 执白 */
+function startGK(room) {
+  const players = [...room.players.values()].sort(() => Math.random() - 0.5);
+  const size = room.settings?.boardSize ?? 15;
+  const mode = room.settings?.mode === 'pve' ? 'pve' : 'pvp';
+  const difficulty = ['easy','normal','hard'].includes(room.settings?.aiDifficulty) ? room.settings.aiDifficulty : 'normal';
+
+  let black, white;
+  if (mode === 'pve') {
+    black = { id: players[0].id, name: players[0].name };
+    white = { ...GK_AI_PLAYER };
+  } else {
+    black = { id: players[0].id, name: players[0].name };
+    white = { id: players[1].id, name: players[1].name };
+  }
+
+  room.gameState = {
+    type: 'gomoku', mode, size, difficulty,
+    board: GKAI.createBoard(size),
+    current: 'black',
+    players: { black, white },
+    winner: null, winLine: null, lastMove: null, moves: 0,
+    scores: { [black.id]: 0, [white.id]: 0 },
+    gameCount: 1,
+  };
+
+  io.to(room.code).emit('gk:state', gkPublic(room.gameState));
+  const colorOf = id => (id === black.id ? 'black' : id === white.id ? 'white' : null);
+  players.forEach(p => io.to(p.id).emit('gk:color', { color: colorOf(p.id) }));
+}
+
+/** 玩家落子校验入口 */
+function gkMove(room, socket, r, c) {
+  const gs = room.gameState;
+  if (!gs || gs.winner) return;
+  if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || c < 0 || r >= gs.size || c >= gs.size) return;
+  if (gs.board[r][c] !== GKAI.EMPTY) return;
+  const color = gs.players.black.id === socket.id ? 'black'
+    : gs.players.white.id === socket.id ? 'white' : null;
+  if (!color || gs.current !== color) return;
+  gkPlace(room, r, c, color);
+}
+
+/** 放置一子并推进局面（胜负/平局/换手，人机局调度 AI） */
+function gkPlace(room, r, c, color) {
+  const gs = room.gameState;
+  const piece = color === 'black' ? GKAI.BLACK : GKAI.WHITE;
+  gs.board[r][c] = piece;
+  gs.lastMove = [r, c];
+  gs.moves++;
+
+  const win = GKAI.checkWinAt(gs.board, r, c, piece);
+  if (win) {
+    gs.winner = color;
+    gs.winLine = win;
+    gs.scores[gs.players[color].id]++;
+    const realIds = [gs.players.black.id, gs.players.white.id].filter(id => id !== GK_AI_ID);
+    recordResult(room, gs.players[color].isAI ? [] : [gs.players[color].id], realIds);
+    io.to(room.code).emit('gk:state', gkPublic(gs));
+    return;
+  }
+  if (gs.moves >= gs.size * gs.size) {
+    gs.winner = 'draw';
+    io.to(room.code).emit('gk:state', gkPublic(gs));
+    return;
+  }
+
+  gs.current = color === 'black' ? 'white' : 'black';
+  io.to(room.code).emit('gk:state', gkPublic(gs));
+  if (gs.mode === 'pve' && gs.players[gs.current]?.isAI) gkScheduleAI(room, gs);
+}
+
+/** 延迟一小段时间后由 AI 落子，营造思考节奏 */
+function gkScheduleAI(room, gsRef) {
+  const delay = 500 + Math.random() * 500;
+  addTimer(room, () => {
+    // 房间已重开/返回大厅时放弃本次调度
+    if (room.gameState !== gsRef || gsRef.winner) return;
+    if (!gsRef.players[gsRef.current]?.isAI) return;
+    const piece = gsRef.current === 'white' ? GKAI.WHITE : GKAI.BLACK;
+    const m = GKAI.chooseMove(gsRef.board, gsRef.difficulty, piece);
+    if (gsRef.board[m.r]?.[m.c] !== GKAI.EMPTY) return;
+    gkPlace(room, m.r, m.c, gsRef.current);
+  }, delay);
+}
+
+/** 下一局：人人交换黑白，人机玩家始终执黑；比分累计 */
+function gkNewGame(room) {
+  const gs = room.gameState;
+  if (!gs) return;
+  if (gs.mode !== 'pve') {
+    const tmp = gs.players.black;
+    gs.players.black = gs.players.white;
+    gs.players.white = tmp;
+  }
+  gs.board = GKAI.createBoard(gs.size);
+  gs.current = 'black';
+  gs.winner = null;
+  gs.winLine = null;
+  gs.lastMove = null;
+  gs.moves = 0;
+  gs.gameCount++;
+  io.to(room.code).emit('gk:state', gkPublic(gs));
+  const colorOf = id => (id === gs.players.black.id ? 'black' : id === gs.players.white.id ? 'white' : null);
+  [...room.players.keys()].forEach(id => io.to(id).emit('gk:color', { color: colorOf(id) }));
+}
+
+/** 对外状态：AI 棋子信息原样下发，棋盘为二维数组 */
+function gkPublic(gs) {
+  return {
+    mode: gs.mode, size: gs.size, difficulty: gs.difficulty,
+    board: gs.board, current: gs.current, players: gs.players,
+    winner: gs.winner, winLine: gs.winLine, lastMove: gs.lastMove,
+    scores: gs.scores, gameCount: gs.gameCount,
   };
 }
 
