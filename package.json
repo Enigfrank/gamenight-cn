@@ -1,6 +1,6 @@
 {
   "name": "gamenight",
-  "version": "1.0.0",
+  "version": "alpha",
   "description": "多人派对游戏",
   "main": "server.js",
   "scripts": {
