@@ -80,7 +80,7 @@ const TicTacToe = (() => {
     document.getElementById('ttt-result').classList.remove('hidden');
     const isMe = winner?.id === App.myId;
     document.getElementById('ttt-result-text').innerHTML =
-      `🏆 锦标赛冠军：<strong>${isMe ? '就是你！' : (winner?.name || '?')}</strong>`;
+      `🏆 锦标赛冠军：<strong>${isMe ? '就是你！' : escHtml(winner?.name || '?')}</strong>`;
     document.getElementById('ttt-host-only').style.display = App.isHost ? 'flex' : 'none';
     document.getElementById('btn-ttt-again').classList.remove('hidden');
     document.getElementById('btn-ttt-again').textContent = '再来一届';

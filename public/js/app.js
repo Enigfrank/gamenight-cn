@@ -52,6 +52,13 @@ const AVATARS = [
   { emoji: '🌈', name: '彩虹' },     { emoji: '🐹', name: '仓鼠' },
 ];
 
+/** HTML 文本转义：所有来自服务端的他人可控字符串（昵称等）渲染进 innerHTML 前必须经过它 */
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // ═══════════════════ GLOBAL STATE ═══════════════════
 const App = {
   socket: io(),
@@ -63,7 +70,18 @@ const App = {
   selectedGame: 'killerdoctor',
   currentSettings: {},
   myAvatar: 0,
+  myToken: '',
 };
+
+/** 读取该房间的重连令牌（仅当前标签页会话有效，关闭浏览器即失效） */
+function loadRoomToken(code) {
+  try { return sessionStorage.getItem(`gn_token_${code}`) || ''; } catch (e) { return ''; }
+}
+
+/** 保存服务端签发的重连令牌 */
+function saveRoomToken(code, token) {
+  try { if (code && token) sessionStorage.setItem(`gn_token_${code}`, token); } catch (e) {}
+}
 
 // ═══════════════════ SETTINGS SCHEMA (client-side) ═══════════════════
 const SETTINGS_SCHEMA = {
@@ -149,7 +167,7 @@ function showConfirm(message, onConfirm, opts = {}) {
   overlay.className = 'confirm-overlay';
   overlay.innerHTML =
     `<div class="confirm-box">` +
-    `<p class="confirm-msg">${message}</p>` +
+    `<p class="confirm-msg">${escHtml(message)}</p>` +
     `<div class="confirm-actions">` +
     `<button class="btn-ghost confirm-cancel">${cancelText}</button>` +
     `<button class="${danger ? 'btn-danger' : 'btn-primary'} confirm-ok">${confirmText}</button>` +
@@ -443,7 +461,8 @@ function doJoin() {
   if (!code) { showError('home-error', '请输入房间代码！'); return; }
   App.myName = name;
   showLoading(true);
-  App.socket.emit('room:join', { code, playerName: name, avatar: App.myAvatar });
+  // 游戏中断线重连时带上服务端签发的令牌，服务端据此恢复原玩家身份
+  App.socket.emit('room:join', { code, playerName: name, avatar: App.myAvatar, token: loadRoomToken(code) });
 }
 
 // ═══════════════════ CLIPBOARD ═══════════════════
@@ -554,7 +573,7 @@ function renderSessionStats(stats) {
     const row = document.createElement('div');
     row.className = 'stats-row';
     row.innerHTML = `<span class="stats-rank">${medals[i] || (i + 1) + '.'}</span>` +
-      `<span class="stats-name">${s.name}</span>` +
+      `<span class="stats-name">${escHtml(s.name)}</span>` +
       `<span class="stats-record">${s.wins} 胜 / ${s.gamesPlayed} 场</span>`;
     body.appendChild(row);
   });
@@ -563,11 +582,12 @@ function renderSessionStats(stats) {
 // ═══════════════════ SOCKET EVENTS ═══════════════════
 App.socket.on('connect', () => { App.myId = App.socket.id; });
 
-App.socket.on('room:joined', ({ code, isHost, gameType }) => {
+App.socket.on('room:joined', ({ code, isHost, gameType, token }) => {
   showLoading(false);
   App.roomCode = code;
   App.isHost = isHost;
   App.gameType = gameType;
+  if (token) { App.myToken = token; saveRoomToken(code, token); }
   showView('lobby');
 });
 

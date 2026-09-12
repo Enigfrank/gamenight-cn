@@ -377,7 +377,7 @@ const KillerDoctor = (() => {
 
     const victimEl = document.getElementById('kd-night-victim');
     if (died) {
-      victimEl.innerHTML = `<span class="victim-char">${getAvatar(died).emoji}</span><span class="victim-name">${died.name} 倒下了</span>`;
+      victimEl.innerHTML = `<span class="victim-char">${getAvatar(died).emoji}</span><span class="victim-name">${escHtml(died.name)} 倒下了</span>`;
       victimEl.className = 'night-victim-display victim-dead';
     } else if (saved) {
       victimEl.innerHTML = `<span class="victim-char">💚</span><span class="victim-name">被医生守护住了</span>`;
@@ -456,7 +456,7 @@ const KillerDoctor = (() => {
       }
       const reveal = document.getElementById('kd-elim-reveal');
       reveal.className = `role-reveal-card ${eliminated.role}`;
-      reveal.innerHTML = `<div class="reveal-char">${getAvatar(eliminated).emoji}</div><div class="reveal-role">${ROLE_INFO[eliminated.role]?.icon || ''} ${roleLabel(eliminated.role)}</div><div>${eliminated.name} 居然是${roleLabel(eliminated.role)}！</div>`;
+      reveal.innerHTML = `<div class="reveal-char">${getAvatar(eliminated).emoji}</div><div class="reveal-role">${ROLE_INFO[eliminated.role]?.icon || ''} ${roleLabel(eliminated.role)}</div><div>${escHtml(eliminated.name)} 居然是${roleLabel(eliminated.role)}！</div>`;
       reveal.classList.remove('hidden');
       document.getElementById('kd-elim-icon').textContent = eliminated.role === 'killer' ? '⚰️' : '😢';
       document.getElementById('kd-elim-title').textContent = eliminated.role === 'killer' ? '抓到杀手了！' : '错杀了好人';
@@ -473,7 +473,7 @@ const KillerDoctor = (() => {
       const d = document.createElement('div');
       d.className = 'vote-detail-item vote-reveal-stagger';
       d.style.animationDelay = `${idx * 0.35}s`;
-      d.innerHTML = `${getAvatar(v).emoji} ${v.name}: <span class="vote-count">${v.votes} 票</span>`;
+      d.innerHTML = `${getAvatar(v).emoji} ${escHtml(v.name)}: <span class="vote-count">${v.votes} 票</span>`;
       detail.appendChild(d);
     });
 
@@ -507,7 +507,7 @@ const KillerDoctor = (() => {
       const info = ROLE_INFO[p.role] || {};
       const card = document.createElement('div');
       card.className = 'final-player-card' + (p.alive ? '' : ' dead');
-      card.innerHTML = `<div class="fp-char">${getAvatar(p).emoji}</div><div class="fp-name">${p.name}${p.id === App.myId ? ' (你)' : ''}</div><div class="fp-role ${p.role}">${info.icon || ''} ${roleLabel(p.role)}</div><div style="font-size:.75rem;color:var(--muted)">${p.alive ? '活到最后' : '已出局'}</div>`;
+      card.innerHTML = `<div class="fp-char">${getAvatar(p).emoji}</div><div class="fp-name">${escHtml(p.name)}${p.id === App.myId ? ' (你)' : ''}</div><div class="fp-role ${p.role}">${info.icon || ''} ${roleLabel(p.role)}</div><div style="font-size:.75rem;color:var(--muted)">${p.alive ? '活到最后' : '已出局'}</div>`;
       grid.appendChild(card);
     });
 
@@ -525,7 +525,7 @@ const KillerDoctor = (() => {
     const messages = document.getElementById('kd-chat-messages');
     const msg = document.createElement('div');
     msg.className = 'chat-msg';
-    msg.innerHTML = `<span class="msg-name" style="color:${avatarColor(playerName)}">${playerName}:</span><span class="msg-text">${escHtml(message)}</span>`;
+    msg.innerHTML = `<span class="msg-name" style="color:${avatarColor(playerName)}">${escHtml(playerName)}:</span><span class="msg-text">${escHtml(message)}</span>`;
     messages.appendChild(msg);
     messages.scrollTop = messages.scrollHeight;
   }
@@ -539,7 +539,7 @@ const KillerDoctor = (() => {
   }
 
   function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   return { init, onRoleAssigned, onReconnect };

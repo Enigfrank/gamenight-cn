@@ -335,7 +335,7 @@ const Scribble = (() => {
   }
 
   function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   // ─── Socket handlers ───
@@ -470,7 +470,7 @@ const Scribble = (() => {
     sorted.forEach((p, i) => {
       const row = document.createElement('div');
       row.className = `overlay-score-item rank-${i+1}`;
-      row.innerHTML = `<span class="osi-rank">#${i+1}</span><span class="osi-name">${p.name}</span><span class="osi-pts">${scores[p.id]||0}</span>`;
+      row.innerHTML = `<span class="osi-rank">#${i+1}</span><span class="osi-name">${escHtml(p.name)}</span><span class="osi-pts">${scores[p.id]||0}</span>`;
       scoreList.appendChild(row);
     });
     overlay.classList.remove('hidden');
@@ -485,7 +485,7 @@ const Scribble = (() => {
     players.forEach((p, i) => {
       const row = document.createElement('div');
       row.className = `overlay-score-item rank-${i+1}`;
-      row.innerHTML = `<span class="osi-rank">${i === 0 ? '🏆' : `#${i+1}`}</span><span class="osi-name">${p.name}${p.id === App.myId ? ' (你)' : ''}</span><span class="osi-pts">${scores[p.id]||0}</span>`;
+      row.innerHTML = `<span class="osi-rank">${i === 0 ? '🏆' : `#${i+1}`}</span><span class="osi-name">${escHtml(p.name)}${p.id === App.myId ? ' (你)' : ''}</span><span class="osi-pts">${scores[p.id]||0}</span>`;
       scoreList.appendChild(row);
     });
     document.getElementById('scb-btn-again').style.display = App.isHost ? 'inline-block' : 'none';

@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const crypto = require('crypto');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
@@ -7,9 +8,41 @@ const os = require('os');
 const { Bonjour } = require('bonjour-service');
 const GKAI = require('./gomoku-ai');
 
+// ─────────────────────────── DEPLOY CONFIG ───────────────────────────
+// 反向代理（nginx 等）部署时设 TRUST_PROXY=1，限流才能取得真实客户端 IP；
+// 裸奔公网切勿开启，否则 X-Forwarded-For 可被伪造绕过限流。
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+// 跨域白名单（逗号分隔，如 https://game.example.com）；不设置则仅允许同源。
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// 公网部署可设 DISABLE_MDNS=1 关闭局域网 mDNS 广播。
+const DISABLE_MDNS = process.env.DISABLE_MDNS === '1';
+
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+if (TRUST_PROXY) app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
+// 浏览器侧纵深防御：固定 CSP，脚本仅允许同源（内联主题脚本已外移至 js/early-theme.js）
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', CSP);
+  next();
+});
 
 // 应用版本号取自 package.json，渲染首页时替换 HTML 中的 __APP_VERSION__ 占位符
 const APP_VERSION = require('./package.json').version;
@@ -21,6 +54,27 @@ app.get(['/', '/index.html'], (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 兜底 404 与错误处理：不向客户端泄露堆栈等内部信息
+app.use((req, res) => res.status(404).type('txt').send('Not Found'));
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).type('txt').send('Internal Server Error');
+});
+
+// 单条消息上限 64KB（聊天 ≤400 字、笔画指令均远小于此），压缩保持默认
+const ioOptions = { maxHttpBufferSize: 64 * 1024 };
+if (ALLOWED_ORIGINS.length) {
+  ioOptions.cors = {
+    origin(origin, cb) {
+      // 非浏览器客户端与同源请求不带 Origin，一律放行；仅校验显式跨域来源
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      return cb(new Error('origin not allowed'));
+    },
+  };
+}
+const io = new Server(server, ioOptions);
 
 const rooms = new Map();
 const playerRooms = new Map(); // socketId -> roomCode
@@ -65,12 +119,75 @@ function validateSettings(incoming, gameType) {
   return out;
 }
 
+// ─────────────────────────── HARDENING ───────────────────────────
+
+const GAME_TYPES = new Set(['tictactoe', 'gomoku', 'killerdoctor', 'scribble', 'uno']);
+const MAX_NAME_LEN = 20;
+const MAX_PLAYERS = 15;
+const MAX_CONNS_PER_IP = 30;
+const HANDSHAKES_PER_MIN = 60;
+const ROOM_OPS_PER_MIN = 30;
+
+/**
+ * 昵称规范化：剥离 C0/C1 控制字符、零宽与双向排版字符（防冒名伪装），
+ * 去首尾空白并限长；返回空串表示非法输入。
+ */
+function sanitizeName(raw) {
+  return String(raw ?? '')
+    .replace(/[\x00-\x1F\x7F\u0080-\u009F\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
+    .trim()
+    .slice(0, MAX_NAME_LEN);
+}
+
+/** 头像序号只接受 0–255 整数，其余回退 0 */
+function normalizeAvatar(raw) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= 255 ? n : 0;
+}
+
+/** 玩家重连令牌：24 字节 CSPRNG，公网环境下身份恢复只认它而非昵称 */
+function genPlayerToken() {
+  return crypto.randomBytes(24).toString('hex');
+}
+
+/** 取客户端真实 IP；仅在 TRUST_PROXY 时采信 X-Forwarded-For 第一段 */
+function clientIp(socket) {
+  if (TRUST_PROXY) {
+    const xff = socket.handshake.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length) return xff.split(',')[0].trim();
+  }
+  return socket.handshake.address;
+}
+
+// 内存固定窗口限流（滑动时间戳数组），按 key 维度计数
+const rateHits = new Map();
+function rateLimit(key, windowMs, max) {
+  const now = Date.now();
+  const hits = (rateHits.get(key) || []).filter(t => now - t < windowMs);
+  if (hits.length >= max) { rateHits.set(key, hits); return false; }
+  hits.push(now);
+  rateHits.set(key, hits);
+  return true;
+}
+// 周期性清理过期计数，避免内存随唯一 IP 无限增长
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, hits] of rateHits) {
+    const fresh = hits.filter(t => now - t < 5 * 60 * 1000);
+    if (fresh.length) rateHits.set(key, fresh);
+    else rateHits.delete(key);
+  }
+}, 5 * 60 * 1000).unref();
+
+// 每 IP 并发连接计数（独立监听器，保证任何断开路径都会递减）
+const ipConnCount = new Map();
+
 // ─────────────────────────── UTILITIES ───────────────────────────
 
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let c = '';
-  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 6; i++) c += chars[crypto.randomInt(chars.length)];
   return c;
 }
 function uniqueCode() { let c; do { c = genCode(); } while (rooms.has(c)); return c; }
@@ -106,15 +223,35 @@ function getLocalIPs() {
 
 // ─────────────────────────── SOCKET CORE ───────────────────────────
 
+// 握手门禁：限制单 IP 握手频率与并发连接数，抑制公网连接洪泛
+io.use((socket, next) => {
+  const ip = clientIp(socket);
+  if ((ipConnCount.get(ip) || 0) >= MAX_CONNS_PER_IP) return next(new Error('too many connections'));
+  if (!rateLimit(`handshake:${ip}`, 60 * 1000, HANDSHAKES_PER_MIN)) return next(new Error('handshake rate limited'));
+  ipConnCount.set(ip, (ipConnCount.get(ip) || 0) + 1);
+  socket.data.ip = ip;
+  // 独立于业务 disconnect 监听，保证计数在任何断开路径下都递减
+  socket.on('disconnect', () => {
+    ipConnCount.set(ip, Math.max(0, (ipConnCount.get(ip) || 1) - 1));
+  });
+  next();
+});
+
 io.on('connection', socket => {
 
   socket.on('room:create', ({ gameType, playerName, avatar }) => {
-    if (!playerName?.trim() || !gameType) return;
+    if (!rateLimit(`roomop:${socket.data.ip}`, 60 * 1000, ROOM_OPS_PER_MIN)) {
+      socket.emit('room:error', { msg: '操作太频繁啦，歇一会儿再试。' }); return;
+    }
+    if (!GAME_TYPES.has(gameType)) return;
+    const name = sanitizeName(playerName);
+    if (!name) return;
     const code = uniqueCode();
+    const token = genPlayerToken();
     const room = {
       code, gameType,
       host: socket.id,
-      players: new Map([[socket.id, { id: socket.id, name: playerName.trim(), avatar: Number(avatar) || 0 }]]),
+      players: new Map([[socket.id, { id: socket.id, name, avatar: normalizeAvatar(avatar), token }]]),
       status: 'lobby',
       gameState: null,
       timers: [],
@@ -124,32 +261,46 @@ io.on('connection', socket => {
     rooms.set(code, room);
     playerRooms.set(socket.id, code);
     socket.join(code);
-    socket.emit('room:joined', { code, isHost: true, gameType });
+    socket.emit('room:joined', { code, isHost: true, gameType, token });
     broadcastLobby(room);
   });
 
-  socket.on('room:join', ({ code, playerName, avatar }) => {
-    const upper = (code || '').toUpperCase().trim();
+  socket.on('room:join', ({ code, playerName, avatar, token }) => {
+    if (!rateLimit(`roomop:${socket.data.ip}`, 60 * 1000, ROOM_OPS_PER_MIN)) {
+      socket.emit('room:error', { msg: '操作太频繁啦，歇一会儿再试。' }); return;
+    }
+    const upper = String(code ?? '').toUpperCase().trim().slice(0, 6);
     const room = rooms.get(upper);
     if (!room) { socket.emit('room:error', { msg: '房间不存在，检查下代码有没有输错？' }); return; }
 
     if (room.status === 'playing') {
-      const existing = [...room.players.values()].find(p => p.name === playerName?.trim());
-      if (!existing) { socket.emit('room:error', { msg: '游戏已经开始啦，中途进不来。' }); return; }
+      // 游戏中的身份恢复必须同时持有原昵称与服务端签发的令牌，
+      // 仅凭昵称可被同房间其他人冒名接管（泄露杀手身份/手牌）
+      const name = sanitizeName(playerName);
+      const existing = [...room.players.values()]
+        .find(p => p.token && p.name === name && p.token === token);
+      if (!existing) { socket.emit('room:error', { msg: '游戏已开始，需用原来的设备与昵称重新进入。' }); return; }
+      // 身份迁移到当前连接：旧连接必须立即移出房间频道并清映射，防止其继续接收广播
+      const oldSocket = io.sockets.sockets.get(existing.id);
+      if (oldSocket && oldSocket !== socket) oldSocket.leave(upper);
+      playerRooms.delete(existing.id);
       room.players.delete(existing.id);
       if (room.host === existing.id) room.host = socket.id;
       existing.id = socket.id;
       room.players.set(socket.id, existing);
       playerRooms.set(socket.id, upper);
       socket.join(upper);
-      socket.emit('room:joined', { code: upper, isHost: room.host === socket.id, gameType: room.gameType });
+      socket.emit('room:joined', { code: upper, isHost: room.host === socket.id, gameType: room.gameType, token: existing.token });
       sendReconnectState(room, socket);
       return;
     }
 
     if (room.players.has(socket.id)) return;
-    const name = (playerName || '').trim() || `玩家${room.players.size + 1}`;
-    const av = Number(avatar) || 0;
+    if (room.players.size >= MAX_PLAYERS) {
+      socket.emit('room:error', { msg: '房间人数已满。' }); return;
+    }
+    const name = sanitizeName(playerName) || `玩家${room.players.size + 1}`;
+    const av = normalizeAvatar(avatar);
     const existing = [...room.players.values()];
     if (existing.some(p => p.name.toLowerCase() === name.toLowerCase())) {
       socket.emit('room:error', { msg: '这个名字房间里已经有人用了，换一个吧。' }); return;
@@ -157,10 +308,11 @@ io.on('connection', socket => {
     if (existing.some(p => p.avatar === av)) {
       socket.emit('room:error', { msg: '这个头像已经被选走了，换一个吧。' }); return;
     }
-    room.players.set(socket.id, { id: socket.id, name, avatar: av });
+    const playerToken = genPlayerToken();
+    room.players.set(socket.id, { id: socket.id, name, avatar: av, token: playerToken });
     playerRooms.set(socket.id, upper);
     socket.join(upper);
-    socket.emit('room:joined', { code: upper, isHost: false, gameType: room.gameType });
+    socket.emit('room:joined', { code: upper, isHost: false, gameType: room.gameType, token: playerToken });
     broadcastLobby(room);
     io.to(upper).emit('notification', `${name} 进入了房间`);
   });
@@ -1084,22 +1236,60 @@ function endScribbleGame(room) {
   io.to(room.code).emit('scribble:game_over', { scores:gs.scores, players:ranked, winner:ranked[0] });
 }
 
+// 绘画指令上限与结构白名单：防止伪造超大 stroke 撑爆内存并向全房间广播
+const STROKE_LIMIT = 6000;
+const isUnitNum = v => Number.isFinite(v) && v >= 0 && v <= 1;
+const STROKE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** 将客户端笔画指令收敛为白名单字段；非法返回 null */
+function sanitizeStroke(stroke) {
+  if (!stroke || typeof stroke !== 'object') return null;
+  if (stroke.type === 'begin') {
+    if (!STROKE_COLOR_RE.test(stroke.color)) return null;
+    if (!['pencil', 'eraser', 'fill'].includes(stroke.tool)) return null;
+    if (!Number.isFinite(stroke.size) || stroke.size < 1 || stroke.size > 100) return null;
+    if (!isUnitNum(stroke.nx) || !isUnitNum(stroke.ny)) return null;
+    return { type: 'begin', nx: stroke.nx, ny: stroke.ny, color: stroke.color, size: stroke.size, tool: stroke.tool };
+  }
+  if (stroke.type === 'point') {
+    if (!isUnitNum(stroke.nx) || !isUnitNum(stroke.ny)) return null;
+    return { type: 'point', nx: stroke.nx, ny: stroke.ny };
+  }
+  if (stroke.type === 'end') return { type: 'end' };
+  return null;
+}
+
 function scribbleAction(room, socket, data) {
   const gs = room.gameState; if (!gs) return;
   const drawerId = gs.drawerOrder[gs.drawerIndex];
   switch (data.action) {
     case 'choose_word':
-      if (socket.id===drawerId&&gs.phase==='choosing') { clearTimers(room); scribbleWordChosen(room,drawerId,data.word); } break;
-    case 'draw':
+      // 词库内词语均为短中文；只放行受限字符串，杜绝超长/非字符串载荷
+      if (socket.id===drawerId&&gs.phase==='choosing'
+        && typeof data.word === 'string' && data.word.length > 0 && data.word.length <= 12) {
+        clearTimers(room); scribbleWordChosen(room,drawerId,data.word);
+      }
+      break;
+    case 'draw': {
       if (socket.id!==drawerId||gs.phase!=='drawing') return;
-      gs.drawingData.push(data.stroke); socket.to(room.code).emit('scribble:draw',{stroke:data.stroke}); break;
+      const safe = sanitizeStroke(data.stroke);
+      if (!safe || gs.drawingData.length >= STROKE_LIMIT) return;
+      gs.drawingData.push(safe);
+      socket.to(room.code).emit('scribble:draw', { stroke: safe });
+      break;
+    }
     case 'clear':
       if (socket.id!==drawerId||gs.phase!=='drawing') return;
       gs.drawingData=[]; io.to(room.code).emit('scribble:clear'); break;
-    case 'fill':
+    case 'fill': {
       if (socket.id!==drawerId||gs.phase!=='drawing') return;
-      gs.drawingData.push({type:'fill',x:data.x,y:data.y,color:data.color});
-      socket.to(room.code).emit('scribble:draw',{stroke:{type:'fill',x:data.x,y:data.y,color:data.color}}); break;
+      if (!isUnitNum(data.x) || !isUnitNum(data.y) || !STROKE_COLOR_RE.test(data.color)) return;
+      if (gs.drawingData.length >= STROKE_LIMIT) return;
+      const safe = { type: 'fill', x: data.x, y: data.y, color: data.color };
+      gs.drawingData.push(safe);
+      socket.to(room.code).emit('scribble:draw', { stroke: safe });
+      break;
+    }
   }
 }
 
@@ -1353,14 +1543,23 @@ const PORT = process.env.PORT || 4000;
 const MDNS_HOST = 'gamenight.local';
 
 server.listen(PORT, '0.0.0.0', () => {
-  const bonjour = new Bonjour();
-  bonjour.publish({ name: 'GameNight', type: 'http', port: Number(PORT), host: MDNS_HOST });
+  let bonjour = null;
+  if (!DISABLE_MDNS) {
+    bonjour = new Bonjour();
+    bonjour.publish({ name: 'GameNight', type: 'http', port: Number(PORT), host: MDNS_HOST });
+  }
 
   console.log('\n🎮  GameNight 启动成功！\n');
   console.log(`  本地访问:    http://localhost:${PORT}`);
-  console.log(`  局域网访问:  http://${MDNS_HOST}:${PORT}  ← 把这个地址发给朋友们！`);
+  if (!DISABLE_MDNS) {
+    console.log(`  局域网访问:  http://${MDNS_HOST}:${PORT}  ← 把这个地址发给朋友们！`);
+  }
   console.log('\n  同一 WiFi / 局域网内的设备用任意浏览器打开即可。\n');
 
-  process.on('SIGINT', () => bonjour.unpublishAll(() => process.exit()));
-  process.on('SIGTERM', () => bonjour.unpublishAll(() => process.exit()));
+  const shutdown = () => {
+    if (bonjour) bonjour.unpublishAll(() => process.exit());
+    else process.exit();
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 });

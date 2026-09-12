@@ -6,10 +6,7 @@
   <title>GameNight</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
-  <script>
-    /* 尽早应用主题，避免黑夜模式刷新时闪白 */
-    try { if (localStorage.getItem('gamenight-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
-  </script>
+  <script src="js/early-theme.js"></script>
 </head>
 <body>
 

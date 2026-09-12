@@ -67,7 +67,7 @@ const UNO = (() => {
       row.className = 'uno-score-row' + (id === winnerId ? ' winner' : '');
       row.innerHTML =
         `<span class="uno-score-rank">${medals[i] || (i + 1) + '.'}</span>` +
-        `<span class="uno-score-name">${players[id]?.name || '?'}</span>` +
+        `<span class="uno-score-name">${escHtml(players[id]?.name || '?')}</span>` +
         `<span class="uno-score-val">${count === 0 ? '获胜！' : '还剩 ' + count + ' 张牌'}</span>`;
       scoresEl.appendChild(row);
     });
