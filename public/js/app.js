@@ -607,8 +607,38 @@ App.socket.on('kd:reconnect',    data  => {
   KillerDoctor.onReconnect(data);
 });
 
+// ═══════════════════ THEME ═══════════════════
+const THEME_KEY = 'gamenight-theme';
+
+/** 将主题应用到根节点，按需持久化并同步切换按钮图标与提示文案 */
+function applyTheme(theme, persist) {
+  document.documentElement.setAttribute('data-theme', theme);
+  if (persist) {
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  }
+  const icon = document.getElementById('theme-icon-use');
+  if (icon) icon.setAttribute('href', theme === 'dark' ? '#i-sun' : '#i-moon');
+  const btn = document.getElementById('btn-theme-toggle');
+  if (btn) {
+    const label = theme === 'dark' ? '切换到浅色模式' : '切换到深色模式';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+}
+
+/** 初始化黑夜模式：读取本地偏好（默认浅色）并绑定右上角切换按钮 */
+function initTheme() {
+  let theme = 'light';
+  try { theme = localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; } catch (e) {}
+  applyTheme(theme, false);
+  document.getElementById('btn-theme-toggle')?.addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
+  });
+}
+
 // ═══════════════════ INIT ═══════════════════
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initAvatarPicker();
   initHome();
   initLobby();

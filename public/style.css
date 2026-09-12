@@ -88,6 +88,49 @@ h4 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08e
 p.muted, .muted { color: var(--color-neutral-500); font-size: var(--text-sm); }
 .hidden { display: none !important; }
 
+/* ============================================================
+   黑夜模式：仅覆盖设计令牌与少量硬编码遮罩色，
+   其余组件全部经由令牌自动适配
+   ============================================================ */
+[data-theme="dark"] {
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-primary-soft: rgba(139, 92, 246, 0.18);
+  --color-primary-ring: rgba(139, 92, 246, 0.4);
+  --color-success: #22c55e;
+  --color-success-soft: rgba(34, 197, 94, 0.16);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.16);
+  --color-error: #ef4444;
+  --color-error-soft: rgba(239, 68, 68, 0.16);
+
+  --color-neutral-0: #1b1f28;
+  --color-neutral-50: #12151b;
+  --color-neutral-100: #222732;
+  --color-neutral-200: #2e3540;
+  --color-neutral-300: #3d4656;
+  --color-neutral-400: #848d9e;
+  --color-neutral-500: #a0a8b8;
+  --color-neutral-900: #e7eaf0;
+
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* 遮罩层：黑夜模式下进一步压暗 */
+[data-theme="dark"] .modal-overlay,
+[data-theme="dark"] .confirm-overlay,
+[data-theme="dark"] .uno-overlay-modal,
+[data-theme="dark"] .scb-overlay,
+[data-theme="dark"] .avatar-modal-backdrop { background: rgba(0, 0, 0, 0.6); }
+[data-theme="dark"] .kd-anim-overlay { background: rgba(0, 0, 0, 0.65); }
+[data-theme="dark"] #loading-overlay { background: rgba(10, 12, 16, 0.8); }
+[data-theme="dark"] .countdown-overlay { background: rgba(10, 12, 16, 0.85); }
+[data-theme="dark"] .scb-word-chooser { background: rgba(18, 21, 27, 0.95); }
+
+/* 画板永远是白纸：画笔/橡皮擦均按白底取色（见 scribble.js） */
+[data-theme="dark"] #scb-canvas { background: #ffffff; }
+
 /* ─── 图标体系（Lucide sprite）─── */
 .svg-sprite { display: none; }
 .icon {
@@ -102,13 +145,29 @@ p.muted, .muted { color: var(--color-neutral-500); font-size: var(--text-sm); }
 .view { display: none; min-height: 100vh; }
 .view.active { display: flex; flex-direction: column; }
 
-/* ─── 页脚版本信息：固定于视口底部，不阻挡交互 ─── */
+/* ─── 黑夜模式切换按钮：固定于界面右上角 ─── */
+.theme-toggle {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 100;
+  width: 36px; height: 36px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-500);
+  box-shadow: var(--shadow-1);
+}
+.theme-toggle:hover { color: var(--color-neutral-900); border-color: var(--color-neutral-300); }
+.theme-toggle:active { transform: scale(0.97); }
+.theme-toggle .icon { width: 20px; height: 20px; vertical-align: 0; }
+
+/* ─── 页脚版本信息：固定于屏幕左下角，不阻挡交互 ─── */
 .app-footer {
   position: fixed;
   bottom: 0;
   left: 0;
-  right: 0;
-  text-align: center;
   padding: var(--space-1) var(--space-4);
   color: var(--color-neutral-400);
   font-size: var(--text-xs);
@@ -414,6 +473,8 @@ input[type="range"] { accent-color: var(--color-primary); width: 100%; cursor: p
 }
 .btn-exit:hover { color: var(--color-error); border-color: var(--color-error); }
 .btn-exit-kd { width: 100%; margin-bottom: var(--space-1); text-align: left; }
+/* UNO / Scribble 的退出按钮位于顶栏最右侧，给固定主题按钮让位 */
+#uno-btn-exit, #scb-btn-exit { margin-right: 48px; }
 
 .btn-rules-link {
   display: flex; align-items: center; justify-content: center; gap: var(--space-2);
@@ -1256,6 +1317,11 @@ input[type="range"] { accent-color: var(--color-primary); width: 100%; cursor: p
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+/* 窄屏时大厅/井字棋右上角操作按钮与固定主题按钮重叠，让出空间 */
+@media (max-width: 760px) {
+  .lobby-header-actions, #ttt-leave { margin-right: 48px; }
+}
+
 @media (max-width: 800px) {
   .kd-sidebar { width: 200px; }
   .scribble-layout { flex-direction: column; }
