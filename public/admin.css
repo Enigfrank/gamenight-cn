@@ -1,0 +1,374 @@
+/* ============================================================
+   GameNight 管理后台专属样式
+   复用主应用 style.css 的设计令牌（颜色/字阶/间距/组件），
+   仅补充后台布局：登录卡、房间表格、观战舞台与事件流。
+   ============================================================ */
+
+/* ─── 页面骨架 ─── */
+.admin-body { min-height: 100vh; }
+.admin-view { display: none; }
+.admin-view.active { display: block; }
+
+/* ─── 登录视图 ─── */
+#view-login {
+  display: none;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+#view-login.active { display: flex; }
+
+.admin-login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.admin-login-logo {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.04em;
+}
+.admin-login-title { font-size: var(--text-lg); margin-top: var(--space-2); }
+.admin-login-sub { margin-top: var(--space-1); margin-bottom: var(--space-6); }
+
+.admin-login-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.admin-login-form input {
+  padding: 10px var(--space-3);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-900);
+}
+.admin-login-form input:focus {
+  outline: 2px solid var(--color-primary-ring);
+  border-color: var(--color-primary);
+}
+
+.admin-login-back {
+  display: inline-block;
+  margin-top: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--color-neutral-500);
+}
+.admin-login-back:hover { color: var(--color-primary); }
+
+/* ─── 顶栏 ─── */
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-neutral-0);
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: var(--text-base);
+  color: var(--color-neutral-900);
+}
+.admin-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.admin-topbar-right { display: flex; align-items: center; gap: var(--space-4); }
+
+.admin-conn {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-neutral-300);
+}
+.admin-conn.online { background: var(--color-success); }
+.admin-conn.offline { background: var(--color-error); }
+
+/* ─── 区块通用 ─── */
+.admin-section { max-width: 1080px; margin: 0 auto; padding: var(--space-6); }
+.admin-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.admin-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 8px;
+  margin-left: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+.admin-empty {
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-500);
+  font-size: var(--text-sm);
+  background: var(--color-neutral-0);
+  border: 1px dashed var(--color-neutral-300);
+  border-radius: var(--radius-md);
+}
+
+/* ─── 房间表格 ─── */
+.admin-table-wrap {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+.admin-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.admin-table th {
+  text-align: left;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-neutral-500);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-200);
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-200);
+  vertical-align: middle;
+}
+.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-table tbody tr:hover { background: var(--color-neutral-50); }
+.admin-code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-neutral-900);
+}
+.admin-code-cell { white-space: nowrap; }
+.icon-lock { color: var(--color-neutral-400); vertical-align: -3px; }
+
+/* 状态徽章 */
+.admin-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.admin-status.st-lobby { background: var(--color-warning-soft); color: var(--color-warning); }
+.admin-status.st-playing { background: var(--color-success-soft); color: var(--color-success); }
+.admin-status.st-ended { background: var(--color-neutral-100); color: var(--color-neutral-500); }
+
+/* ─── 观战视图 ─── */
+.admin-spectate-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.admin-spectate-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.admin-code-cell .admin-code { font-size: var(--text-base); }
+#sp-code { font-size: var(--text-lg); }
+
+.admin-spectate-layout {
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-start;
+}
+
+/* 对局舞台 */
+.admin-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+
+.sp-panel-title { margin-bottom: var(--space-2); }
+
+/* 比分卡 */
+.sp-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.sp-score-card {
+  min-width: 140px;
+  text-align: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+}
+.sp-score-card.active-turn { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.sp-score-name { font-weight: 600; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-score-pts { font-size: var(--text-xl); font-weight: 700; color: var(--color-primary); }
+.sp-vs { font-size: var(--text-sm); color: var(--color-neutral-400); font-weight: 700; }
+
+.sp-status {
+  text-align: center;
+  color: var(--color-neutral-500);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+  min-height: 20px;
+}
+
+/* 只读棋盘 */
+.ttt-board-readonly .ttt-cell { cursor: default; }
+.admin-stage .gk-board { margin: 0 auto; }
+
+.sp-gk-disc { width: 16px; height: 16px; margin: 0 auto var(--space-1); }
+
+/* KD 面板 */
+.sp-kd-phase {
+  text-align: center;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+}
+.sp-kd-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+/* Scribble 面板 */
+.sp-scb-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+#scb-sp-canvas {
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  background: #ffffff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  display: block;
+}
+#scb-sp-scores { margin-top: var(--space-3); }
+
+/* UNO 面板 */
+.sp-uno-center {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+#uno-sp-players { margin-top: var(--space-3); }
+
+/* 大厅面板 */
+#sp-lobby-players { margin-top: var(--space-3); }
+
+/* ─── 玩家小片（chips） ─── */
+.admin-chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px var(--space-3);
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  color: var(--color-neutral-900);
+}
+.admin-chip.active { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.admin-chip.dead { opacity: 0.55; text-decoration: line-through; }
+.admin-chip.muted { color: var(--color-neutral-400); }
+.admin-uno-mark {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+/* ─── 事件流 ─── */
+.admin-feed {
+  flex: 0 0 300px;
+  position: sticky;
+  top: 76px;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+.admin-feed h4 { margin-bottom: var(--space-2); }
+
+.admin-log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 520px;
+  overflow-y: auto;
+  font-size: var(--text-xs);
+  color: var(--color-neutral-900);
+}
+.admin-log-row { line-height: 1.5; word-break: break-word; }
+.admin-log-row.hl { color: var(--color-primary); font-weight: 600; }
+.admin-log-row.chat { color: var(--color-neutral-500); }
+.admin-log-time { color: var(--color-neutral-400); margin-right: var(--space-2); font-family: ui-monospace, Consolas, monospace; }
+.admin-log-row.muted { color: var(--color-neutral-400); }
+
+#kd-sp-history { max-height: 200px; }
+
+/* ─── Toast ─── */
+.admin-toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-8);
+  transform: translate(-50%, 12px);
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-0);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-2);
+  opacity: 0;
+  transition: opacity var(--dur-ui) var(--ease-out), transform var(--dur-ui) var(--ease-out);
+  z-index: 100;
+  pointer-events: none;
+}
+.admin-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ─── 响应式 ─── */
+@media (max-width: 860px) {
+  .admin-spectate-layout { flex-direction: column; }
+  .admin-feed { position: static; flex: none; width: 100%; max-height: 260px; }
+  .admin-section { padding: var(--space-4); }
+  .sp-kd-cols { grid-template-columns: 1fr; }
+  .sp-uno-center { gap: var(--space-4); }
+}

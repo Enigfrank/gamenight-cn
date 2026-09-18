@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>GameNight 后台</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
+  <script src="js/early-theme.js"></script>
+</head>
+<body class="admin-body">
+
+<!-- ═══ 登录 ═══ -->
+<div id="view-login" class="admin-view active">
+  <div class="admin-login-card">
+    <div class="admin-login-logo">GameNight</div>
+    <h1 class="admin-login-title">管理后台</h1>
+    <p class="muted admin-login-sub">查看在线房间并观战对局</p>
+    <div class="admin-login-form">
+      <input id="admin-pwd" type="password" placeholder="管理员密码" autocomplete="current-password" maxlength="64">
+      <button id="admin-login-btn" class="btn-primary" type="button">进入后台</button>
+    </div>
+    <div id="admin-login-error" class="error-msg hidden"></div>
+    <a class="admin-login-back" href="/">&larr; 返回前台</a>
+  </div>
+</div>
+
+<!-- ═══ 主面板 ═══ -->
+<div id="view-panel" class="admin-view">
+
+  <header class="admin-topbar">
+    <div class="admin-brand">
+      <span class="admin-brand-mark"><svg class="icon"><use href="#i-eye"/></svg></span>
+      GameNight 后台
+    </div>
+    <div class="admin-topbar-right">
+      <span id="admin-conn" class="admin-conn offline" title="连接已断开，自动重连中…"></span>
+      <a class="btn-ghost btn-sm" href="/">返回前台</a>
+    </div>
+  </header>
+
+  <!-- 房间列表 -->
+  <section id="admin-rooms-section" class="admin-section">
+    <div class="admin-section-head">
+      <h2>在线房间 <span id="admin-room-count" class="admin-count">0</span></h2>
+      <span class="muted">列表每 2 秒自动刷新</span>
+    </div>
+    <div id="admin-rooms-empty" class="admin-empty hidden">
+      当前没有在线房间 —— 等玩家创建房间后这里会自动出现。
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>房间</th>
+            <th>游戏</th>
+            <th>状态</th>
+            <th>玩家</th>
+            <th>创建于</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="admin-rooms-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 观战 -->
+  <section id="admin-spectate" class="admin-section hidden">
+    <div class="admin-spectate-head">
+      <button id="admin-back" class="btn-ghost btn-sm" type="button">&larr; 返回列表</button>
+      <div class="admin-spectate-info">
+        <strong id="sp-code" class="admin-code"></strong>
+        <span id="sp-game" class="badge"></span>
+        <span id="sp-status" class="badge"></span>
+      </div>
+    </div>
+
+    <div class="admin-spectate-layout">
+      <!-- 对局舞台：按游戏切换 -->
+      <main id="sp-stage" class="admin-stage">
+
+        <!-- 大厅 -->
+        <div id="sp-lobby" class="sp-panel hidden">
+          <h3 class="sp-panel-title">游戏大厅</h3>
+          <p id="sp-lobby-hint" class="muted"></p>
+          <div id="sp-lobby-players" class="admin-chip-list"></div>
+        </div>
+
+        <!-- 井字棋 -->
+        <div id="sp-ttt" class="sp-panel hidden">
+          <div class="sp-score-row">
+            <div class="sp-score-card" id="ttt-sp-card-x">
+              <div class="sp-score-name" id="ttt-sp-name-x">—</div>
+              <div class="sp-score-pts" id="ttt-sp-pts-x">0</div>
+            </div>
+            <div class="sp-vs">VS</div>
+            <div class="sp-score-card" id="ttt-sp-card-o">
+              <div class="sp-score-name" id="ttt-sp-name-o">—</div>
+              <div class="sp-score-pts" id="ttt-sp-pts-o">0</div>
+            </div>
+          </div>
+          <div id="ttt-sp-status" class="sp-status"></div>
+          <div id="ttt-sp-board" class="ttt-board ttt-board-readonly">
+            <div class="ttt-cell" data-i="0"></div>
+            <div class="ttt-cell" data-i="1"></div>
+            <div class="ttt-cell" data-i="2"></div>
+            <div class="ttt-cell" data-i="3"></div>
+            <div class="ttt-cell" data-i="4"></div>
+            <div class="ttt-cell" data-i="5"></div>
+            <div class="ttt-cell" data-i="6"></div>
+            <div class="ttt-cell" data-i="7"></div>
+            <div class="ttt-cell" data-i="8"></div>
+          </div>
+          <div id="ttt-sp-sub" class="muted"></div>
+        </div>
+
+        <!-- 五子棋 -->
+        <div id="sp-gk" class="sp-panel hidden">
+          <div class="sp-score-row">
+            <div class="sp-score-card" id="gk-sp-card-black">
+              <span class="gk-disc gk-disc-black sp-gk-disc"></span>
+              <div class="sp-score-name" id="gk-sp-name-black">黑棋</div>
+              <div class="sp-score-pts" id="gk-sp-pts-black">0</div>
+            </div>
+            <div class="sp-vs">VS</div>
+            <div class="sp-score-card" id="gk-sp-card-white">
+              <span class="gk-disc gk-disc-white sp-gk-disc"></span>
+              <div class="sp-score-name" id="gk-sp-name-white">白棋</div>
+              <div class="sp-score-pts" id="gk-sp-pts-white">0</div>
+            </div>
+          </div>
+          <div id="gk-sp-status" class="sp-status"></div>
+          <div class="gk-board-wrap">
+            <div id="gk-sp-board" class="gk-board"></div>
+          </div>
+        </div>
+
+        <!-- 谁是杀手 -->
+        <div id="sp-kd" class="sp-panel hidden">
+          <div id="kd-sp-phase" class="sp-kd-phase"></div>
+          <div class="sp-kd-cols">
+            <div>
+              <h4>存活</h4>
+              <div id="kd-sp-alive" class="admin-chip-list"></div>
+            </div>
+            <div>
+              <h4>出局</h4>
+              <div id="kd-sp-dead" class="admin-chip-list"></div>
+            </div>
+          </div>
+          <h4>对局历史</h4>
+          <div id="kd-sp-history" class="admin-log"></div>
+        </div>
+
+        <!-- Scribble -->
+        <div id="sp-scb" class="sp-panel hidden">
+          <div class="sp-scb-top">
+            <span id="scb-sp-word" class="scb-word-display"></span>
+            <span id="scb-sp-round" class="muted"></span>
+          </div>
+          <canvas id="scb-sp-canvas" width="800" height="500"></canvas>
+          <div id="scb-sp-scores" class="admin-chip-list"></div>
+        </div>
+
+        <!-- UNO -->
+        <div id="sp-uno" class="sp-panel hidden">
+          <div class="sp-uno-center">
+            <div class="uno-pile-wrap">
+              <div class="uno-card uno-card-big card-back"><span id="uno-sp-deck-count"></span></div>
+              <div class="uno-area-label">抽牌</div>
+            </div>
+            <div class="uno-pile-wrap">
+              <div id="uno-sp-discard" class="uno-card uno-card-big"></div>
+              <div class="uno-area-label uno-color-row">
+                <span id="uno-sp-color-dot" class="uno-color-dot"></span>
+                <span id="uno-sp-color-name"></span>
+              </div>
+            </div>
+          </div>
+          <div id="uno-sp-status" class="sp-status"></div>
+          <div id="uno-sp-players" class="admin-chip-list"></div>
+        </div>
+
+      </main>
+
+      <!-- 事件流 -->
+      <aside class="admin-feed">
+        <h4>事件流</h4>
+        <div id="sp-feed" class="admin-log"></div>
+      </aside>
+    </div>
+  </section>
+
+</div>
+
+<!-- Icon sprite: Lucide（lucide.dev），与主应用同一图标库 -->
+<svg xmlns="http://www.w3.org/2000/svg" class="svg-sprite" aria-hidden="true">
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+</svg>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

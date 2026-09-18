@@ -114,6 +114,7 @@ http://gamenight.local:4000
 | `TRUST_PROXY` | `1` | **仅在反向代理后设置**，限流才能取得真实客户端 IP；直连公网时切勿开启（否则可伪造请求头绕过限流） |
 | `ALLOWED_ORIGINS` | `https://game.example.com` | 允许跨域访问的来源白名单，多个用逗号分隔；不设置则仅允许同源 |
 | `DISABLE_MDNS` | `1` | 公网部署建议设置，关闭局域网 mDNS 广播 |
+| `ADMIN_PASSWORD` | `自定义强密码` | 管理后台（`/admin`）登录密码：查看全部在线房间并观战对局；不设置则后台禁用 |
 
 PowerShell 示例：
 
@@ -193,16 +194,19 @@ gamenight-cn/
 ├── gomoku-ai.js          # 五子棋 AI（简单 / 普通 / 困难三档纯逻辑实现）
 ├── public/
 │   ├── index.html        # 单页应用入口（含全部游戏界面与规则弹窗）
+│   ├── admin.html        # 管理后台页面（/admin，密码观战在线房间）
 │   ├── style.css         # 明暗主题、布局与动效样式
+│   ├── admin.css         # 后台专属样式
 │   ├── favicon.svg
 │   └── js/
 │       ├── app.js            # Socket 连接 · 大厅系统 · 视图管理 · 头像与设置
-│       ├── early-theme.js    # 首屏主题预判，避免页面加载时闪烁
-│       ├── tictactoe.js      # 井字棋客户端交互
-│       ├── gomoku.js         # 五子棋客户端交互
-│       ├── killerdoctor.js   # 谁是杀手客户端交互
-│       ├── scribble.js       # Scribble 画布与聊天系统
-│       └── uno.js            # UNO 客户端交互
+│       ├── admin.js           # 管理后台：登录、房间列表与只读观战
+│       ├── early-theme.js     # 首屏主题预判，避免页面加载时闪烁
+│       ├── tictactoe.js       # 井字棋客户端交互
+│       ├── gomoku.js          # 五子棋客户端交互
+│       ├── killerdoctor.js    # 谁是杀手客户端交互
+│       ├── scribble.js        # Scribble 画布与聊天系统
+│       └── uno.js             # UNO 客户端交互
 ├── test-gomoku.js        # 五子棋 AI 与判胜用例（node test-gomoku.js）
 ├── test-tournament.js    # 井字棋淘汰赛赛程用例（node test-tournament.js）
 ├── start.bat             # Windows 启动脚本

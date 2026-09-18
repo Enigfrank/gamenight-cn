@@ -152,7 +152,8 @@ const Scribble = (() => {
         ctx.beginPath();
         break;
       case 'fill': {
-        const { x, y } = canvasCoords(stroke.nx, stroke.ny);
+        // fill 指令的字段是归一化 x/y（服务端 scribbleAction 白名单输出），与 begin/point 的 nx/ny 不同
+        const { x, y } = canvasCoords(stroke.x, stroke.y);
         floodFill(Math.round(x), Math.round(y), stroke.color);
         break;
       }

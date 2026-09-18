@@ -16,6 +16,9 @@ const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 // 公网部署可设 DISABLE_MDNS=1 关闭局域网 mDNS 广播。
 const DISABLE_MDNS = process.env.DISABLE_MDNS === '1';
+// 后台观战密码：设置后 /admin 后台可用；留空（默认）则后台登录一律拒绝。
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const ADMIN_LOGIN_PER_MIN = 5;
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +53,12 @@ const APP_VERSION = require('./package.json').version;
 app.get(['/', '/index.html'], (req, res) => {
   const html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
     .replace('__APP_VERSION__', APP_VERSION);
+  res.type('html').send(html);
+});
+
+// 后台页面：独立于主 SPA，密码经 Socket.IO 校验（见 admin:login 事件）
+app.get(['/admin', '/admin.html'], (req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, 'public', 'admin.html'), 'utf8');
   res.type('html').send(html);
 });
 
@@ -239,6 +248,96 @@ function getLocalIPs() {
   return ips;
 }
 
+// ─────────────────────────── ADMIN BACKEND ───────────────────────────
+// 后台仅依赖房间级广播频道：管理员 socket 加入 code 频道即可收到全部
+// io.to(code) 公开事件，但绝不写入 room.players / playerRooms，因此不影响
+// 对局、人数统计与断线逻辑；手牌/身份/秘密词等私密数据均为点对点下发，
+// 后台天然收不到。
+
+/** 已通过密码校验的后台连接 */
+const adminSockets = new Set();
+
+/** 常数时间密码比较，避免时序侧信道逐位泄露管理员密码 */
+function adminSafeEqual(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) {
+    // 长度不等时也执行一次比较，使两种失败路径耗时一致
+    crypto.timingSafeEqual(ba, ba);
+    return false;
+  }
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+/** 后台视角的房间列表（不含房间密码明文与令牌） */
+function adminRoomsPayload() {
+  return [...rooms.values()].map(r => ({
+    code: r.code,
+    gameType: r.gameType,
+    status: r.status,
+    playerCount: r.players.size,
+    hasPassword: Boolean(r.password),
+    players: [...r.players.values()].map(p => p.name),
+    createdAt: r.createdAt || 0,
+  }));
+}
+
+/**
+ * 观战初始快照：仅聚合各游戏对全体房间成员公开的状态，
+ * 不包含 UNO 手牌、杀手身份、Scribble 秘密词与对局方私有令牌。
+ */
+function adminSnapshot(room) {
+  const snap = {
+    code: room.code,
+    gameType: room.gameType,
+    status: room.status,
+    players: [...room.players.values()].map(p => ({ id: p.id, name: p.name })),
+  };
+  const gs = room.gameState;
+  if (!gs) return snap;
+  switch (room.gameType) {
+    case 'tictactoe':
+      snap.ttt = tttPublic(gs);
+      if (gs.mode === 'tournament') snap.tttTournament = tttTournamentPublic(gs);
+      break;
+    case 'gomoku':
+      snap.gk = gkPublic(gs);
+      break;
+    case 'uno':
+      snap.uno = unoPublic(gs);
+      break;
+    case 'scribble':
+      snap.scribble = {
+        phase: gs.phase,
+        drawerId: gs.drawerOrder[gs.drawerIndex],
+        round: gs.round,
+        maxRounds: gs.maxRounds,
+        masked: gs.masked,
+        scores: gs.scores,
+        drawingData: gs.drawingData,
+        players: scribblePlayers(room),
+      };
+      break;
+    case 'killerdoctor':
+      snap.kd = {
+        phase: gs.phase,
+        round: gs.round,
+        livingPlayers: kdAlive(gs).map(kdPub),
+        deadPlayers: kdDead(gs).map(kdPub),
+        history: gs.history,
+      };
+      break;
+  }
+  return snap;
+}
+
+// 有管理员在线时低频同步房间列表，统一覆盖创建/销毁/开局/结束等一切变更
+setInterval(() => {
+  if (!adminSockets.size) return;
+  const payload = adminRoomsPayload();
+  for (const s of adminSockets) s.emit('admin:rooms', { rooms: payload });
+}, 2000).unref();
+
 // ─────────────────────────── SOCKET CORE ───────────────────────────
 
 // 握手门禁：限制单 IP 握手频率与并发连接数，抑制公网连接洪泛
@@ -277,6 +376,7 @@ io.on('connection', socket => {
       timers: [],
       settings: defaultSettings(gameType),
       sessionStats: {},
+      createdAt: Date.now(),
     };
     rooms.set(code, room);
     playerRooms.set(socket.id, code);
@@ -433,7 +533,48 @@ io.on('connection', socket => {
     broadcastLobby(room);
   });
 
+  // ─────────────────────── ADMIN SOCKET ───────────────────────
+
+  socket.on('admin:login', ({ password } = {}) => {
+    if (!rateLimit(`adminlogin:${socket.data.ip}`, 60 * 1000, ADMIN_LOGIN_PER_MIN)) {
+      socket.emit('admin:login_result', { ok: false, msg: '尝试过于频繁，请稍后再试。' });
+      return;
+    }
+    if (!ADMIN_PASSWORD) {
+      socket.emit('admin:login_result', { ok: false, msg: '后台未启用：请设置 ADMIN_PASSWORD 环境变量后重启服务。' });
+      return;
+    }
+    if (typeof password !== 'string' || !adminSafeEqual(password, ADMIN_PASSWORD)) {
+      socket.emit('admin:login_result', { ok: false, msg: '密码错误。' });
+      return;
+    }
+    socket.data.admin = true;
+    adminSockets.add(socket);
+    socket.emit('admin:login_result', { ok: true, rooms: adminRoomsPayload() });
+  });
+
+  socket.on('admin:watch', ({ code } = {}) => {
+    if (!socket.data.admin) return;
+    const upper = String(code ?? '').toUpperCase().trim().slice(0, 6);
+    const room = rooms.get(upper);
+    if (!room) {
+      socket.emit('admin:watch_result', { ok: false, msg: '房间不存在或已关闭。' });
+      return;
+    }
+    if (socket.data.adminWatch && socket.data.adminWatch !== room.code) socket.leave(socket.data.adminWatch);
+    socket.data.adminWatch = room.code;
+    // 只加入广播频道，不写入 players/playerRooms：观战不影响对局与人数
+    socket.join(room.code);
+    socket.emit('admin:watch_result', { ok: true, snapshot: adminSnapshot(room) });
+  });
+
+  socket.on('admin:unwatch', () => {
+    if (socket.data.adminWatch) socket.leave(socket.data.adminWatch);
+    socket.data.adminWatch = null;
+  });
+
   socket.on('disconnect', () => {
+    adminSockets.delete(socket);
     const room = getRoom(socket.id);
     if (!room) return;
     const player = room.players.get(socket.id);
@@ -1341,10 +1482,9 @@ function scribbleStartTurn(room) {
 function scribbleWordChosen(room, drawerId, word) {
   const gs = room.gameState; if (gs.phase !== 'choosing') return;
   gs.word=word; gs.phase='drawing'; gs.masked=maskWord(word); gs.roundStartTime=Date.now();
+  // 全房间广播无词版本（含观战者），画师再单独收到含词版本
+  io.to(room.code).emit('scribble:draw_start', { word: null, masked: gs.masked, duration: gs.ROUND_DURATION });
   io.to(drawerId).emit('scribble:draw_start', { word, masked: gs.masked, duration: gs.ROUND_DURATION });
-  [...room.players.keys()].filter(id=>id!==drawerId).forEach(id =>
-    io.to(id).emit('scribble:draw_start', { word: null, masked: gs.masked, duration: gs.ROUND_DURATION })
-  );
   addTimer(room, () => sendHint(room), 40000);
   addTimer(room, () => sendHint(room), 55000);
   addTimer(room, () => { if (room.gameState?.phase==='drawing') endScribbleRound(room, false); }, gs.ROUND_DURATION*1000);
