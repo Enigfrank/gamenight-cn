@@ -85,9 +85,9 @@ function defaultSettings(gameType) {
   switch (gameType) {
     case 'scribble':     return { drawTime: 45, rounds: 3, wordChoices: 3 };
     case 'killerdoctor': return { discussionTime: 45, votingTime: 45, nightTime: 45 };
-    case 'tictactoe':    return { bestOf: 0 };
-    case 'gomoku':       return { boardSize: 15, mode: 'pvp', aiDifficulty: 'normal' };
-    case 'uno':          return {};
+    case 'tictactoe':    return { bestOf: 0, turnTime: 30 };
+    case 'gomoku':       return { boardSize: 15, mode: 'pvp', aiDifficulty: 'normal', turnTime: 30 };
+    case 'uno':          return { turnTime: 30 };
     default:             return {};
   }
 }
@@ -96,6 +96,8 @@ function validateSettings(incoming, gameType) {
   const out = {};
   const n = k => Math.round(Number(incoming[k]));
   const isValidTime = k => Number.isFinite(n(k)) && n(k) >= 10 && n(k) <= 600;
+  // 回合计时仅井字棋/五子棋/UNO 支持
+  const isValidTurnTime = () => Number.isFinite(n('turnTime')) && n('turnTime') >= 0 && n('turnTime') <= 120;
   switch (gameType) {
     case 'scribble':
       if (isValidTime('drawTime'))              out.drawTime    = n('drawTime');
@@ -109,11 +111,16 @@ function validateSettings(incoming, gameType) {
       break;
     case 'tictactoe':
       if ([0,3,5,7].includes(n('bestOf')))      out.bestOf = n('bestOf');
+      if (isValidTurnTime())                    out.turnTime = n('turnTime');
       break;
     case 'gomoku':
       if ([13,15,19].includes(n('boardSize')))  out.boardSize = n('boardSize');
       if (['pvp','pve'].includes(incoming.mode)) out.mode = incoming.mode;
       if (['easy','normal','hard'].includes(incoming.aiDifficulty)) out.aiDifficulty = incoming.aiDifficulty;
+      if (isValidTurnTime())                    out.turnTime = n('turnTime');
+      break;
+    case 'uno':
+      if (isValidTurnTime())                    out.turnTime = n('turnTime');
       break;
   }
   return out;
@@ -192,7 +199,17 @@ function genCode() {
 }
 function uniqueCode() { let c; do { c = genCode(); } while (rooms.has(c)); return c; }
 function getRoom(sid) { const code = playerRooms.get(sid); return code ? rooms.get(code) : null; }
-function clearTimers(room) { (room.timers||[]).forEach(clearTimeout); room.timers = []; }
+function clearTurnTimer(room) {
+  if (room.turnTimer) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+}
+function clearTimers(room) {
+  clearTurnTimer(room);
+  (room.timers||[]).forEach(clearTimeout);
+  room.timers = [];
+}
 function addTimer(room, fn, ms) { if (!room.timers) room.timers = []; const t = setTimeout(fn, ms); room.timers.push(t); return t; }
 function minPlayers(g, settings) {
   if (g === 'gomoku') return settings?.mode === 'pve' ? 1 : 2;
@@ -205,6 +222,7 @@ function broadcastLobby(room) {
     code: room.code,
     gameType: room.gameType,
     hostId: room.host,
+    hasPassword: Boolean(room.password),
     minPlayers: minPlayers(room.gameType, room.settings),
     settings: room.settings,
     sessionStats: Object.keys(room.sessionStats || {}).length ? room.sessionStats : null,
@@ -239,17 +257,19 @@ io.use((socket, next) => {
 
 io.on('connection', socket => {
 
-  socket.on('room:create', ({ gameType, playerName, avatar }) => {
+  socket.on('room:create', ({ gameType, playerName, avatar, password }) => {
     if (!rateLimit(`roomop:${socket.data.ip}`, 60 * 1000, ROOM_OPS_PER_MIN)) {
       socket.emit('room:error', { msg: '操作太频繁啦，歇一会儿再试。' }); return;
     }
     if (!GAME_TYPES.has(gameType)) return;
     const name = sanitizeName(playerName);
     if (!name) return;
+    const cleanPassword = typeof password === 'string' ? password.trim().slice(0, 32) : '';
     const code = uniqueCode();
     const token = genPlayerToken();
     const room = {
       code, gameType,
+      password: cleanPassword,
       host: socket.id,
       players: new Map([[socket.id, { id: socket.id, name, avatar: normalizeAvatar(avatar), token }]]),
       status: 'lobby',
@@ -261,17 +281,25 @@ io.on('connection', socket => {
     rooms.set(code, room);
     playerRooms.set(socket.id, code);
     socket.join(code);
-    socket.emit('room:joined', { code, isHost: true, gameType, token });
+    socket.emit('room:joined', { code, isHost: true, gameType, token, hasPassword: Boolean(cleanPassword) });
     broadcastLobby(room);
   });
 
-  socket.on('room:join', ({ code, playerName, avatar, token }) => {
+  socket.on('room:join', ({ code, playerName, avatar, token, password }) => {
     if (!rateLimit(`roomop:${socket.data.ip}`, 60 * 1000, ROOM_OPS_PER_MIN)) {
       socket.emit('room:error', { msg: '操作太频繁啦，歇一会儿再试。' }); return;
     }
     const upper = String(code ?? '').toUpperCase().trim().slice(0, 6);
     const room = rooms.get(upper);
     if (!room) { socket.emit('room:error', { msg: '房间不存在，检查下代码有没有输错？' }); return; }
+
+    if (room.password) {
+      const reqPwd = typeof password === 'string' ? password.trim() : '';
+      if (reqPwd !== room.password) {
+        socket.emit('room:error', { msg: '房间密码错误，请输入正确的密码。' });
+        return;
+      }
+    }
 
     if (room.status === 'playing') {
       // 游戏中的身份恢复必须同时持有原昵称与服务端签发的令牌，
@@ -290,7 +318,7 @@ io.on('connection', socket => {
       room.players.set(socket.id, existing);
       playerRooms.set(socket.id, upper);
       socket.join(upper);
-      socket.emit('room:joined', { code: upper, isHost: room.host === socket.id, gameType: room.gameType, token: existing.token });
+      socket.emit('room:joined', { code: upper, isHost: room.host === socket.id, gameType: room.gameType, token: existing.token, hasPassword: Boolean(room.password) });
       sendReconnectState(room, socket);
       return;
     }
@@ -312,7 +340,7 @@ io.on('connection', socket => {
     room.players.set(socket.id, { id: socket.id, name, avatar: av, token: playerToken });
     playerRooms.set(socket.id, upper);
     socket.join(upper);
-    socket.emit('room:joined', { code: upper, isHost: false, gameType: room.gameType, token: playerToken });
+    socket.emit('room:joined', { code: upper, isHost: false, gameType: room.gameType, token: playerToken, hasPassword: Boolean(room.password) });
     broadcastLobby(room);
     io.to(upper).emit('notification', `${name} 进入了房间`);
   });
@@ -329,7 +357,11 @@ io.on('connection', socket => {
 
   socket.on('room:kick', ({ playerId }) => {
     const room = getRoom(socket.id);
-    if (!room || room.host !== socket.id) return;
+    if (!room) return;
+    if (room.host !== socket.id) {
+      socket.emit('room:error', { msg: '只有房主才能踢出玩家。' });
+      return;
+    }
     if (!playerId || playerId === socket.id) return;
     const player = room.players.get(playerId);
     if (!player) return;
@@ -383,6 +415,11 @@ io.on('connection', socket => {
   socket.on('game:restart', () => {
     const room = getRoom(socket.id);
     if (!room || room.host !== socket.id) return;
+    // 对局中可能有人被踢/离场，重开前必须重验人数，否则 startTTT 等开局函数会以残缺玩家数组运行
+    if (room.players.size < minPlayers(room.gameType, room.settings)) {
+      socket.emit('room:error', { msg: `至少要 ${minPlayers(room.gameType, room.settings)} 名玩家才能开局。` });
+      return;
+    }
     restartGame(room);
   });
 
@@ -539,12 +576,38 @@ function onPlayerDisconnect(room, sid, name) {
           }
         }
       } else if (gs.players?.X?.id === sid || gs.players?.O?.id === sid) {
+        clearTurnTimer(room);
+        gs.turnEndsAt = 0;
+        const winnerKey = gs.players.X.id === sid ? 'O' : 'X';
+        const winner = gs.players[winnerKey];
+        if (winner && !gs.winner && !gs.matchWinner) {
+          gs.winner = winner.id;
+          gs.winnerSymbol = winnerKey;
+          gs.scores[winner.id] = (gs.scores[winner.id] || 0) + 1;
+          if (gs.bestOf > 0 && gs.scores[winner.id] >= Math.ceil(gs.bestOf / 2)) {
+            gs.matchWinner = winner.id;
+          }
+          // 战绩记账口径与 tttMove 保持一致：自由对战不记账，系列赛仅在决出整场胜者时记一次
+          if (gs.matchWinner) recordResult(room, [winner.id]);
+          io.to(room.code).emit('notification', `${name} 离开了对局，${winner.name} 获胜！`);
+          io.to(room.code).emit('ttt:state', tttPublic(gs));
+        }
         io.to(room.code).emit('ttt:player_left', { name });
       }
       break;
     case 'gomoku':
-      // 人人对局中真人离场通知其余玩家；人机局 AI 思考定时器不受影响，玩家同名重连可续局
       if (gs.mode !== 'pve' && (gs.players?.black.id === sid || gs.players?.white.id === sid)) {
+        clearTurnTimer(room);
+        gs.turnEndsAt = 0;
+        const remainingId = gs.players.black.id === sid ? gs.players.white.id : gs.players.black.id;
+        const winnerColor = gs.players.black.id === remainingId ? 'black' : 'white';
+        if (!gs.winner) {
+          gs.winner = winnerColor;
+          gs.scores[remainingId] = (gs.scores[remainingId] || 0) + 1;
+          recordResult(room, [remainingId], [remainingId]);
+          io.to(room.code).emit('notification', `${name} 离开了对局，${gs.players[winnerColor]?.name} 获胜！`);
+          io.to(room.code).emit('gk:state', gkPublic(gs));
+        }
         io.to(room.code).emit('gk:player_left', { name });
       }
       break;
@@ -581,6 +644,9 @@ function onPlayerDisconnect(room, sid, name) {
       }
       gs.awaitingPass = false;
       gs.drawnCardIndex = -1;
+      if (wasCurrentPlayer) {
+        resetUnoTurnTimer(room);
+      }
       io.to(room.code).emit('uno:state', unoPublic(gs));
       break;
     }
@@ -687,6 +753,7 @@ function startTournamentMatch(room, p1Id, p2Id) {
   gs.players = { X: { id: X.id, name: X.name }, O: { id: O.id, name: O.name } };
   gs.currentTurn = X.id;
   gs.winner = null; gs.winLine = null; gs.winnerSymbol = null;
+  resetTTTTurnTimer(room);
   io.to(room.code).emit('ttt:state', tttPublic(gs));
   io.to(room.code).emit('ttt:tournament_state', tttTournamentPublic(gs));
   io.to(X.id).emit('ttt:symbol', { symbol: 'X' });
@@ -703,6 +770,35 @@ function tttTournamentPublic(gs) {
   };
 }
 
+function resetTTTTurnTimer(room) {
+  clearTurnTimer(room);
+  const gs = room.gameState;
+  const turnTime = Number(room.settings?.turnTime || 0);
+  if (!gs || gs.winner || (gs.mode !== 'tournament' && gs.matchWinner) || turnTime <= 0 || !gs.currentTurn) {
+    if (gs) gs.turnEndsAt = 0;
+    return;
+  }
+  gs.turnEndsAt = Date.now() + turnTime * 1000;
+  room.turnTimer = setTimeout(() => {
+    room.turnTimer = null;
+    tttTimeoutAutoplay(room);
+  }, turnTime * 1000);
+}
+
+function tttTimeoutAutoplay(room) {
+  const gs = room.gameState;
+  if (!gs || !gs.board || gs.winner || (gs.mode !== 'tournament' && gs.matchWinner) || !gs.currentTurn) return;
+  const empty = [];
+  for (let i = 0; i < 9; i++) {
+    if (gs.board[i] === null) empty.push(i);
+  }
+  if (empty.length === 0) return;
+  const pick = empty[Math.floor(Math.random() * empty.length)];
+  const curPlayer = gs.players?.X?.id === gs.currentTurn ? gs.players.X : gs.players?.O;
+  io.to(room.code).emit('notification', `${curPlayer?.name || '玩家'} 思考超时，系统已自动随机落子`);
+  tttMove(room, { id: gs.currentTurn }, pick);
+}
+
 function startTTT(room) {
   const players = [...room.players.values()].sort(() => Math.random() - 0.5);
   const bestOf = room.settings?.bestOf ?? 0;
@@ -716,6 +812,7 @@ function startTTT(room) {
       allPlayers, rounds, currentRound: 0, currentMatch: 0,
       board: null, players: null, currentTurn: null,
       winner: null, winLine: null, winnerSymbol: null, tournamentWinner: null,
+      turnEndsAt: 0,
     };
     io.to(room.code).emit('ttt:tournament_state', tttTournamentPublic(room.gameState));
     addTimer(room, () => advanceTournament(room), 2000);
@@ -729,7 +826,9 @@ function startTTT(room) {
       winner: null, winLine: null, winnerSymbol: null,
       scores: { [X.id]: 0, [O.id]: 0 },
       gameCount: 1, bestOf, matchWinner: null,
+      turnEndsAt: 0,
     };
+    resetTTTTurnTimer(room);
     io.to(room.code).emit('ttt:state', tttPublic(room.gameState));
     io.to(X.id).emit('ttt:symbol', { symbol: 'X' });
     io.to(O.id).emit('ttt:symbol', { symbol: 'O' });
@@ -746,6 +845,8 @@ function tttMove(room, socket, index) {
   gs.board[index] = sym;
   const win = tttWin(gs.board);
   if (win) {
+    clearTurnTimer(room);
+    gs.turnEndsAt = 0;
     gs.winner = socket.id; gs.winnerSymbol = sym; gs.winLine = win;
     if (gs.mode === 'tournament') {
       gs.rounds[gs.currentRound][gs.currentMatch].winner = socket.id;
@@ -764,6 +865,8 @@ function tttMove(room, socket, index) {
       io.to(room.code).emit('ttt:state', tttPublic(gs));
     }
   } else if (gs.board.every(Boolean)) {
+    clearTurnTimer(room);
+    gs.turnEndsAt = 0;
     gs.winner = 'draw';
     io.to(room.code).emit('ttt:state', tttPublic(gs));
     if (gs.mode === 'tournament') {
@@ -772,6 +875,7 @@ function tttMove(room, socket, index) {
     }
   } else {
     gs.currentTurn = gs.currentTurn === gs.players.X.id ? gs.players.O.id : gs.players.X.id;
+    resetTTTTurnTimer(room);
     io.to(room.code).emit('ttt:state', tttPublic(gs));
   }
 }
@@ -779,11 +883,14 @@ function tttMove(room, socket, index) {
 function tttNewGame(room) {
   const gs = room.gameState;
   if (!gs || gs.mode === 'tournament' || gs.matchWinner) return;
+  // 任一对局方已离场/被踢（gs.players 是开局快照）时禁止与“幽灵”续局
+  if (!room.players.has(gs.players.X.id) || !room.players.has(gs.players.O.id)) return;
   const tmp = gs.players.X; gs.players.X = gs.players.O; gs.players.O = tmp;
   gs.board = Array(9).fill(null);
   gs.currentTurn = gs.players.X.id;
   gs.winner = null; gs.winLine = null; gs.winnerSymbol = null;
   gs.gameCount++;
+  resetTTTTurnTimer(room);
   io.to(room.code).emit('ttt:state', tttPublic(gs));
   io.to(gs.players.X.id).emit('ttt:symbol', { symbol: 'X' });
   io.to(gs.players.O.id).emit('ttt:symbol', { symbol: 'O' });
@@ -802,6 +909,7 @@ function tttPublic(gs) {
     winner: gs.winner, winLine: gs.winLine, winnerSymbol: gs.winnerSymbol,
     scores: gs.scores || {}, gameCount: gs.gameCount || 1,
     bestOf: gs.bestOf || 0, matchWinner: gs.matchWinner || null,
+    turnEndsAt: gs.turnEndsAt || 0,
   };
 }
 
@@ -809,6 +917,36 @@ function tttPublic(gs) {
 
 const GK_AI_ID = '__gomoku_ai__';
 const GK_AI_PLAYER = { id: GK_AI_ID, name: 'AI 机器人', isAI: true };
+
+function resetGKTurnTimer(room) {
+  clearTurnTimer(room);
+  const gs = room.gameState;
+  const turnTime = Number(room.settings?.turnTime || 0);
+  if (!gs || gs.winner || turnTime <= 0) {
+    if (gs) gs.turnEndsAt = 0;
+    return;
+  }
+  if (gs.players[gs.current]?.isAI) {
+    gs.turnEndsAt = 0;
+    return;
+  }
+  gs.turnEndsAt = Date.now() + turnTime * 1000;
+  room.turnTimer = setTimeout(() => {
+    room.turnTimer = null;
+    gkTimeoutAutoplay(room);
+  }, turnTime * 1000);
+}
+
+function gkTimeoutAutoplay(room) {
+  const gs = room.gameState;
+  if (!gs || gs.winner || gs.players[gs.current]?.isAI) return;
+  const piece = gs.current === 'black' ? GKAI.BLACK : GKAI.WHITE;
+  const m = GKAI.chooseMove(gs.board, gs.difficulty || 'normal', piece);
+  if (!m || gs.board[m.r]?.[m.c] !== GKAI.EMPTY) return;
+  const curPlayer = gs.players[gs.current];
+  io.to(room.code).emit('notification', `${curPlayer?.name || '玩家'} 思考超时，系统已自动代为落子`);
+  gkPlace(room, m.r, m.c, gs.current);
+}
 
 /** 开局：人人随机定黑白；人机固定玩家执黑、AI 执白 */
 function startGK(room) {
@@ -834,8 +972,10 @@ function startGK(room) {
     winner: null, winLine: null, lastMove: null, moves: 0,
     scores: { [black.id]: 0, [white.id]: 0 },
     gameCount: 1,
+    turnEndsAt: 0,
   };
 
+  resetGKTurnTimer(room);
   io.to(room.code).emit('gk:state', gkPublic(room.gameState));
   const colorOf = id => (id === black.id ? 'black' : id === white.id ? 'white' : null);
   players.forEach(p => io.to(p.id).emit('gk:color', { color: colorOf(p.id) }));
@@ -863,6 +1003,8 @@ function gkPlace(room, r, c, color) {
 
   const win = GKAI.checkWinAt(gs.board, r, c, piece);
   if (win) {
+    clearTurnTimer(room);
+    gs.turnEndsAt = 0;
     gs.winner = color;
     gs.winLine = win;
     gs.scores[gs.players[color].id]++;
@@ -872,12 +1014,15 @@ function gkPlace(room, r, c, color) {
     return;
   }
   if (gs.moves >= gs.size * gs.size) {
+    clearTurnTimer(room);
+    gs.turnEndsAt = 0;
     gs.winner = 'draw';
     io.to(room.code).emit('gk:state', gkPublic(gs));
     return;
   }
 
   gs.current = color === 'black' ? 'white' : 'black';
+  resetGKTurnTimer(room);
   io.to(room.code).emit('gk:state', gkPublic(gs));
   if (gs.mode === 'pve' && gs.players[gs.current]?.isAI) gkScheduleAI(room, gs);
 }
@@ -900,6 +1045,8 @@ function gkScheduleAI(room, gsRef) {
 function gkNewGame(room) {
   const gs = room.gameState;
   if (!gs) return;
+  // 人人对局任一方已离场/被踢时禁止续局（人机局白方是 AI，不在 room.players 中）
+  if (gs.mode !== 'pve' && (!room.players.has(gs.players.black.id) || !room.players.has(gs.players.white.id))) return;
   if (gs.mode !== 'pve') {
     const tmp = gs.players.black;
     gs.players.black = gs.players.white;
@@ -912,6 +1059,8 @@ function gkNewGame(room) {
   gs.lastMove = null;
   gs.moves = 0;
   gs.gameCount++;
+  gs.turnEndsAt = 0;
+  resetGKTurnTimer(room);
   io.to(room.code).emit('gk:state', gkPublic(gs));
   const colorOf = id => (id === gs.players.black.id ? 'black' : id === gs.players.white.id ? 'white' : null);
   [...room.players.keys()].forEach(id => io.to(id).emit('gk:color', { color: colorOf(id) }));
@@ -924,6 +1073,7 @@ function gkPublic(gs) {
     board: gs.board, current: gs.current, players: gs.players,
     winner: gs.winner, winLine: gs.winLine, lastMove: gs.lastMove,
     scores: gs.scores, gameCount: gs.gameCount,
+    turnEndsAt: gs.turnEndsAt || 0,
   };
 }
 
@@ -1367,7 +1517,54 @@ function unoPublic(gs) {
     unoSaid: gs.unoSaid,
     lastAction: gs.lastAction,
     deckCount: gs.deck.length,
+    turnEndsAt: gs.turnEndsAt || 0,
   };
+}
+
+function resetUnoTurnTimer(room) {
+  clearTurnTimer(room);
+  const gs = room.gameState;
+  const turnTime = Number(room.settings?.turnTime || 0);
+  if (!gs || gs.phase === 'game_over' || turnTime <= 0) {
+    if (gs) gs.turnEndsAt = 0;
+    return;
+  }
+  const curPlayerId = gs.playerOrder[gs.currentPlayerIndex];
+  if (!curPlayerId) {
+    gs.turnEndsAt = 0;
+    return;
+  }
+  gs.turnEndsAt = Date.now() + turnTime * 1000;
+  room.turnTimer = setTimeout(() => {
+    room.turnTimer = null;
+    unoTimeoutAutoplay(room);
+  }, turnTime * 1000);
+}
+
+function unoTimeoutAutoplay(room) {
+  const gs = room.gameState;
+  if (!gs || gs.phase === 'game_over') return;
+  const curPlayerId = gs.playerOrder[gs.currentPlayerIndex];
+  if (!curPlayerId) return;
+  const curPlayer = gs.players[curPlayerId];
+  const curName = curPlayer?.name || '玩家';
+
+  if (gs.phase === 'choose_color') {
+    const randomColor = UNO_COLORS[Math.floor(Math.random() * UNO_COLORS.length)];
+    io.to(room.code).emit('notification', `${curName} 选色超时，系统已随机选择颜色`);
+    unoChooseColor(room, { id: curPlayerId }, randomColor);
+  } else if (gs.phase === 'playing') {
+    if (gs.awaitingPass) {
+      io.to(room.code).emit('notification', `${curName} 思考超时，系统已自动过牌`);
+      unoPass(room, { id: curPlayerId });
+    } else {
+      io.to(room.code).emit('notification', `${curName} 思考超时，系统已自动摸牌跳过`);
+      unoDrawCard(room, { id: curPlayerId });
+      if (gs.awaitingPass && gs.playerOrder[gs.currentPlayerIndex] === curPlayerId) {
+        unoPass(room, { id: curPlayerId });
+      }
+    }
+  }
 }
 
 function startUno(room) {
@@ -1388,6 +1585,7 @@ function startUno(room) {
     phase: 'playing', awaitingPass: false, drawnCardIndex: -1,
     hands, unoSaid: {}, lastAction: null,
     players: Object.fromEntries(players.map(p => [p.id, { id: p.id, name: p.name, avatar: p.avatar ?? 0 }])),
+    turnEndsAt: 0,
   };
 
   const gs = room.gameState;
@@ -1403,6 +1601,7 @@ function startUno(room) {
     io.to(room.code).emit('notification', `起始牌是 +2！${players[0].name} 摸了两张。`);
   }
 
+  resetUnoTurnTimer(room);
   io.to(room.code).emit('uno:state', unoPublic(gs));
   players.forEach(p => io.to(p.id).emit('uno:hand', { hand: gs.hands[p.id] }));
 }
@@ -1444,6 +1643,8 @@ function unoPlayCard(room, socket, cardIndex) {
   io.to(socket.id).emit('uno:hand', { hand });
 
   if (hand.length === 0) {
+    clearTurnTimer(room);
+    gs.turnEndsAt = 0;
     io.to(room.code).emit('uno:state', unoPublic(gs));
     endUno(room, socket.id);
     return;
@@ -1451,6 +1652,7 @@ function unoPlayCard(room, socket, cardIndex) {
 
   if (card.value === 'wild' || card.value === 'wild4') {
     gs.phase = 'choose_color';
+    resetUnoTurnTimer(room);
     io.to(room.code).emit('uno:state', unoPublic(gs));
     io.to(socket.id).emit('uno:choose_color');
     return;
@@ -1471,6 +1673,7 @@ function unoPlayCard(room, socket, cardIndex) {
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
   }
 
+  resetUnoTurnTimer(room);
   io.to(room.code).emit('uno:state', unoPublic(gs));
 }
 
@@ -1493,6 +1696,7 @@ function unoDrawCard(room, socket) {
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
     io.to(socket.id).emit('uno:hand', { hand: gs.hands[socket.id], drawnIndex, canPlayDrawn: false });
   }
+  resetUnoTurnTimer(room);
   io.to(room.code).emit('uno:state', unoPublic(gs));
 }
 
@@ -1502,6 +1706,7 @@ function unoPass(room, socket) {
   gs.awaitingPass = false; gs.drawnCardIndex = -1;
   gs.currentPlayerIndex = unoNextIdx(gs, 1);
   gs.lastAction = { type: 'pass', playerId: socket.id };
+  resetUnoTurnTimer(room);
   io.to(room.code).emit('uno:state', unoPublic(gs));
 }
 
@@ -1522,11 +1727,14 @@ function unoChooseColor(room, socket, color) {
   } else {
     gs.currentPlayerIndex = unoNextIdx(gs, 1);
   }
+  resetUnoTurnTimer(room);
   io.to(room.code).emit('uno:state', unoPublic(gs));
 }
 
 function endUno(room, winnerId) {
+  clearTurnTimer(room);
   const gs = room.gameState;
+  gs.turnEndsAt = 0;
   gs.phase = 'game_over';
   room.status = 'ended';
   recordResult(room, [winnerId], gs.playerOrder);

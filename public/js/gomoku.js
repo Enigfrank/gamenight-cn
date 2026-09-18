@@ -9,6 +9,47 @@ const Gomoku = (() => {
   let myColor = null; // 'black' | 'white' | null（观战）
   let state = null;
   let mirror = [];   // 已渲染棋盘快照，用于增量更新
+  let timerInterval = null;
+  // 人人对局一方离场后置位：隐藏“下一局”，与服务端 gkNewGame 人数守卫对应
+  let opponentLeft = false;
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function getTimerSuffix() {
+    if (!state || state.winner || !state.turnEndsAt || state.turnEndsAt <= 0) return '';
+    const currentPlayer = state.players[state.current];
+    if (currentPlayer?.isAI) return '';
+    const rem = Math.max(0, Math.ceil((state.turnEndsAt - Date.now()) / 1000));
+    return rem > 0 ? ` (${rem}s)` : ' (超时托管中…)';
+  }
+
+  function updateStatusText() {
+    const status = document.getElementById('gk-status');
+    const thinking = document.getElementById('gk-thinking');
+    if (!status || !state || state.winner) return;
+
+    const currentPlayer = state.players[state.current];
+    const timerStr = getTimerSuffix();
+
+    if (!myColor) {
+      thinking.classList.add('hidden');
+      status.textContent = `观战中${timerStr}`;
+    } else if (currentPlayer.isAI) {
+      thinking.classList.remove('hidden');
+      status.textContent = 'AI 思考中…';
+    } else if (state.current === myColor) {
+      thinking.classList.add('hidden');
+      status.textContent = (myColor === 'black' ? '轮到你落子（黑棋先手）' : '轮到你落子（白棋）') + timerStr;
+    } else {
+      thinking.classList.add('hidden');
+      status.textContent = `等待 ${currentPlayer.name} 落子…` + timerStr;
+    }
+  }
 
   /** 各棋盘规格的星位（0 基坐标） */
   function starPoints(n) {
@@ -45,11 +86,18 @@ const Gomoku = (() => {
   }
 
   function onPlayerLeft({ name }) {
+    if (state && state.mode !== 'pve') {
+      opponentLeft = true;
+      // 服务端先广播 gk:state 再发 player_left，需在此直接收起“下一局”
+      document.getElementById('btn-gk-again').classList.add('hidden');
+    }
     toast(`${name} 退出了游戏。`);
   }
 
   function onState(s) {
     state = s;
+    // 全新一局（未落子、未结算）到达时复位离场标记
+    if (!s.winner && s.moves === 0) opponentLeft = false;
     const boardEl = document.getElementById('gk-board');
     if (mirror.length !== s.size) buildBoard(s.size);
     boardEl.classList.toggle('gk-me-black', myColor === 'black');
@@ -134,6 +182,21 @@ const Gomoku = (() => {
     return player.name + (player.id === App.myId ? ' (你)' : '');
   }
 
+  function renderScoreKickBtn(cardId, player) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    card.querySelectorAll('.gk-kick-btn').forEach(b => b.remove());
+    if (!App.isHost || !player || player.isAI || player.id === App.myId) return;
+    const btn = document.createElement('button');
+    btn.className = 'btn-host-ctrl btn-kick-ctrl gk-kick-btn';
+    btn.title = `踢出 ${player.name}`;
+    btn.textContent = '🚫';
+    btn.addEventListener('click', () => {
+      showConfirm(`把 ${player.name} 踢出房间？`, () => App.socket.emit('room:kick', { playerId: player.id }), { confirmText: '踢出', danger: true });
+    });
+    card.appendChild(btn);
+  }
+
   function renderScores() {
     const { players, scores } = state;
     document.getElementById('gk-name-black').textContent = playerLabel(players.black);
@@ -143,6 +206,8 @@ const Gomoku = (() => {
     document.getElementById('gk-pts-white').textContent = scores[players.white.id] || 0;
     document.getElementById('gk-score-black').classList.toggle('active-turn', state.current === 'black' && !state.winner);
     document.getElementById('gk-score-white').classList.toggle('active-turn', state.current === 'white' && !state.winner);
+    renderScoreKickBtn('gk-score-black', players.black);
+    renderScoreKickBtn('gk-score-white', players.white);
 
     const sizeLabel = `${state.size} × ${state.size}`;
     const modeLabel = state.mode === 'pve'
@@ -157,28 +222,21 @@ const Gomoku = (() => {
     const result = document.getElementById('gk-result');
 
     if (state.winner) {
+      stopTimer();
       thinking.classList.add('hidden');
       status.textContent = '';
       result.classList.remove('hidden');
       result.querySelector('#gk-result-text').textContent = resultText();
       document.getElementById('gk-host-only').style.display = App.isHost ? 'flex' : 'none';
+      document.getElementById('btn-gk-again').classList.toggle('hidden', opponentLeft);
       return;
     }
 
     result.classList.add('hidden');
+    updateStatusText();
     const currentPlayer = state.players[state.current];
-    if (!myColor) {
-      thinking.classList.add('hidden');
-      status.textContent = '观战中';
-    } else if (currentPlayer.isAI) {
-      thinking.classList.remove('hidden');
-      status.textContent = 'AI 思考中…';
-    } else if (state.current === myColor) {
-      thinking.classList.add('hidden');
-      status.textContent = myColor === 'black' ? '轮到你落子（黑棋先手）' : '轮到你落子（白棋）';
-    } else {
-      thinking.classList.add('hidden');
-      status.textContent = `等待 ${currentPlayer.name} 落子…`;
+    if (!timerInterval && state.turnEndsAt > 0 && !currentPlayer?.isAI) {
+      timerInterval = setInterval(updateStatusText, 1000);
     }
   }
 
@@ -192,5 +250,5 @@ const Gomoku = (() => {
     return `${winner.name} 赢了这一局。`;
   }
 
-  return { init, onState, onColor, onPlayerLeft };
+  return { init, onState, onColor, onPlayerLeft, teardown: stopTimer };
 })();

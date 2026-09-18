@@ -107,9 +107,11 @@
         <span class="home-card-icon"><svg class="icon icon-lg"><use href="#i-gamepad"/></svg></span>
         <div class="home-card-text">
           <div class="home-card-title">创建房间</div>
-          <div class="home-card-sub">为好友主持一场新游戏</div>
+          <div class="row-inline">
+            <input id="inp-create-pwd" type="password" placeholder="房间密码（可选）" maxlength="20" autocomplete="new-password">
+            <button id="btn-create" class="btn-primary btn-sm">创建</button>
+          </div>
         </div>
-        <button id="btn-create" class="btn-primary btn-sm">创建</button>
       </div>
       <div class="home-or">或</div>
       <div class="home-card">
@@ -118,6 +120,7 @@
           <div class="home-card-title">加入房间</div>
           <div class="row-inline">
             <input id="inp-code" type="text" placeholder="房间代码" maxlength="6" autocomplete="off">
+            <input id="inp-join-pwd" type="password" placeholder="密码（若有）" maxlength="20" autocomplete="current-password">
             <button id="btn-join" class="btn-primary btn-sm">加入</button>
           </div>
         </div>
@@ -138,6 +141,7 @@
         <div class="room-code-row">
           <span>房间代码：</span>
           <strong id="lobby-code" class="code-display"></strong>
+          <span id="lobby-lock-badge" class="badge hidden">密码保护</span>
           <button id="btn-copy" class="btn-icon" title="复制房间代码"><svg class="icon"><use href="#i-copy"/></svg></button>
           <button id="btn-share" class="btn-icon" title="复制邀请链接"><svg class="icon"><use href="#i-share"/></svg></button>
         </div>

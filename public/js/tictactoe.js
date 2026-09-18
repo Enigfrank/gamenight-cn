@@ -3,6 +3,36 @@ const TicTacToe = (() => {
   let state = null;
   let isTournament = false;
   let prevBoard = Array(9).fill(null);
+  let timerInterval = null;
+  // 经典/系列赛对局方离场后置位：隐藏“下一局/新对决”，与服务端 tttNewGame 人数守卫对应
+  let opponentLeft = false;
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function getTimerSuffix() {
+    if (!state || state.winner || state.matchWinner || !state.turnEndsAt || state.turnEndsAt <= 0) return '';
+    const rem = Math.max(0, Math.ceil((state.turnEndsAt - Date.now()) / 1000));
+    return rem > 0 ? ` (${rem}s)` : ' (超时托管中…)';
+  }
+
+  function updateStatusText() {
+    const status = document.getElementById('ttt-status');
+    if (!status || !state || state.winner || state.matchWinner) return;
+    const timerStr = getTimerSuffix();
+    if (!mySymbol) {
+      status.textContent = `👁 ${isTournament ? '本局观战中' : '观战中'}`;
+    } else if (state.currentTurn === App.myId) {
+      status.textContent = `轮到你了！你是 ${mySymbol === 'X' ? '✕' : '○'}${timerStr}`;
+    } else {
+      const other = state.currentTurn === state.players.X.id ? state.players.X : state.players.O;
+      status.textContent = `等 ${other.name} 落子……${timerStr}`;
+    }
+  }
 
   function init() {
     document.querySelectorAll('.ttt-cell').forEach(cell => {
@@ -41,6 +71,8 @@ const TicTacToe = (() => {
     state = s;
     isTournament = s.mode === 'tournament';
     if (!s.board) return; // tournament between matches
+    // 全新一局（空棋盘、未结算）到达时复位离场标记
+    if (!s.winner && s.board.every(c => c === null)) opponentLeft = false;
     renderBoard();
     if (!isTournament) {
       renderScores();
@@ -91,6 +123,10 @@ const TicTacToe = (() => {
   }
 
   function onPlayerLeft({ name }) {
+    opponentLeft = true;
+    // 服务端先广播 ttt:state 再发 player_left，需在此直接收起续局按钮
+    document.getElementById('btn-ttt-again').classList.add('hidden');
+    document.getElementById('btn-ttt-new-match').classList.add('hidden');
     toast(`${name} 退出了游戏。`);
   }
 
@@ -217,6 +253,7 @@ const TicTacToe = (() => {
     if (isTournament) {
       renderScoresTournament();
       if (state.winner) {
+        stopTimer();
         if (state.winner === 'draw') {
           result.classList.remove('hidden');
           document.getElementById('ttt-result-text').textContent = "平局！🤝 马上重赛……";
@@ -235,13 +272,9 @@ const TicTacToe = (() => {
         status.textContent = '';
       } else {
         result.classList.add('hidden');
-        if (!mySymbol) {
-          status.textContent = '👁 本局观战中';
-        } else if (state.currentTurn === App.myId) {
-          status.textContent = `轮到你了！你是 ${mySymbol === 'X' ? '✕' : '○'}`;
-        } else {
-          const other = state.currentTurn === state.players.X.id ? state.players.X : state.players.O;
-          status.textContent = `等 ${other.name} 落子……`;
+        updateStatusText();
+        if (!timerInterval && state.turnEndsAt > 0) {
+          timerInterval = setInterval(updateStatusText, 1000);
         }
       }
       return;
@@ -252,6 +285,7 @@ const TicTacToe = (() => {
     const newMatchBtn = document.getElementById('btn-ttt-new-match');
     const newGameBtn = document.getElementById('btn-ttt-again');
     if (state.matchWinner) {
+      stopTimer();
       result.classList.remove('hidden');
       const mw = state.players.X.id === state.matchWinner ? state.players.X : state.players.O;
       const isMe = state.matchWinner === App.myId;
@@ -259,10 +293,11 @@ const TicTacToe = (() => {
         ? `🏆 你赢下了整场比赛！（${bestOfLabel(state.bestOf)}）`
         : `🏆 ${mw.name} 赢下了整场比赛！（${bestOfLabel(state.bestOf)}）`;
       hostOnly.style.display = App.isHost ? 'flex' : 'none';
-      newMatchBtn.classList.remove('hidden');
+      newMatchBtn.classList.toggle('hidden', opponentLeft);
       newGameBtn.classList.add('hidden');
       status.textContent = '';
     } else if (state.winner) {
+      stopTimer();
       result.classList.remove('hidden');
       let msg;
       if (state.winner === 'draw') {
@@ -276,20 +311,16 @@ const TicTacToe = (() => {
       document.getElementById('ttt-result-text').textContent = msg;
       hostOnly.style.display = App.isHost ? 'flex' : 'none';
       newMatchBtn.classList.add('hidden');
-      newGameBtn.classList.remove('hidden');
+      newGameBtn.classList.toggle('hidden', opponentLeft);
       status.textContent = '';
     } else {
       result.classList.add('hidden');
-      if (!mySymbol) {
-        status.textContent = '👁 观战中';
-      } else if (state.currentTurn === App.myId) {
-        status.textContent = `轮到你了！你是 ${mySymbol === 'X' ? '✕' : '○'}`;
-      } else {
-        const other = state.currentTurn === state.players.X.id ? state.players.X : state.players.O;
-        status.textContent = `等 ${other.name} 落子……`;
+      updateStatusText();
+      if (!timerInterval && state.turnEndsAt > 0) {
+        timerInterval = setInterval(updateStatusText, 1000);
       }
     }
   }
 
-  return { init, onSymbol, onState, onPlayerLeft };
+  return { init, onSymbol, onState, onPlayerLeft, teardown: stopTimer };
 })();

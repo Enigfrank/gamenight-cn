@@ -84,6 +84,8 @@ function saveRoomToken(code, token) {
 }
 
 // ═══════════════════ SETTINGS SCHEMA (client-side) ═══════════════════
+const TURN_TIME_OPTIONS = [{v:0,l:'无限制'},{v:15,l:'15 秒'},{v:30,l:'30 秒 ★'},{v:45,l:'45 秒'},{v:60,l:'60 秒'}];
+
 const SETTINGS_SCHEMA = {
   scribble: [
     { id: 'drawTime', label: '绘画时间', default: 45, isTime: true,
@@ -102,6 +104,7 @@ const SETTINGS_SCHEMA = {
   tictactoe: [
     { id: 'bestOf', label: '比赛赛制', default: 0,
       options: [{v:0,l:'自由对战 ★'},{v:3,l:'三局两胜'},{v:5,l:'五局三胜'},{v:7,l:'七局四胜'}] },
+    { id: 'turnTime', label: '回合倒计时', default: 30, options: TURN_TIME_OPTIONS },
   ],
   gomoku: [
     { id: 'boardSize', label: '棋盘大小', default: 15,
@@ -110,8 +113,11 @@ const SETTINGS_SCHEMA = {
       options: [{v:'pvp',l:'人人对战 ★'},{v:'pve',l:'人机对战（1 人即可）'}] },
     { id: 'aiDifficulty', label: 'AI 难度（人机模式）', default: 'normal',
       options: [{v:'easy',l:'简单'},{v:'normal',l:'普通 ★'},{v:'hard',l:'困难'}] },
+    { id: 'turnTime', label: '回合倒计时', default: 30, options: TURN_TIME_OPTIONS },
   ],
-  uno: [],
+  uno: [
+    { id: 'turnTime', label: '回合倒计时', default: 30, options: TURN_TIME_OPTIONS },
+  ],
 };
 
 // ═══════════════════ VIEW MANAGEMENT ═══════════════════
@@ -439,13 +445,16 @@ function initHome() {
   document.getElementById('btn-create')?.addEventListener('click', () => {
     const name = document.getElementById('inp-name').value.trim();
     if (!name) { showError('home-error', '先给自己起个名字吧！'); return; }
+    const password = document.getElementById('inp-create-pwd')?.value.trim() || '';
     App.myName = name;
     showLoading(true);
-    App.socket.emit('room:create', { gameType: App.selectedGame, playerName: name, avatar: App.myAvatar });
+    App.socket.emit('room:create', { gameType: App.selectedGame, playerName: name, avatar: App.myAvatar, password });
   });
 
   document.getElementById('btn-join').addEventListener('click', doJoin);
   document.getElementById('inp-code').addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
+  document.getElementById('inp-create-pwd')?.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-create')?.click(); });
+  document.getElementById('inp-join-pwd')?.addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
   document.getElementById('inp-name').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       const code = document.getElementById('inp-code').value.trim();
@@ -457,12 +466,13 @@ function initHome() {
 function doJoin() {
   const name = document.getElementById('inp-name').value.trim();
   const code = document.getElementById('inp-code').value.trim().toUpperCase();
+  const password = document.getElementById('inp-join-pwd')?.value.trim() || '';
   if (!name) { showError('home-error', '先给自己起个名字吧！'); return; }
   if (!code) { showError('home-error', '请输入房间代码！'); return; }
   App.myName = name;
   showLoading(true);
   // 游戏中断线重连时带上服务端签发的令牌，服务端据此恢复原玩家身份
-  App.socket.emit('room:join', { code, playerName: name, avatar: App.myAvatar, token: loadRoomToken(code) });
+  App.socket.emit('room:join', { code, playerName: name, avatar: App.myAvatar, token: loadRoomToken(code), password });
 }
 
 // ═══════════════════ CLIPBOARD ═══════════════════
@@ -500,14 +510,18 @@ function initLobby() {
   document.getElementById('btn-start').addEventListener('click', () => App.socket.emit('game:start'));
 }
 
-function renderLobby({ players, code, gameType, hostId, minPlayers, settings, sessionStats }) {
+function renderLobby({ players, code, gameType, hostId, minPlayers, settings, sessionStats, hasPassword }) {
   App.roomCode = code;
   App.isHost = hostId === App.myId;
   App.currentSettings = settings || {};
+  App.hasPassword = Boolean(hasPassword);
 
   const gameNames = { tictactoe: '井字棋', gomoku: '五子棋', killerdoctor: '谁是杀手', scribble: '你画我猜', uno: 'UNO' };
   document.getElementById('lobby-title').textContent = gameNames[gameType] || '游戏大厅';
   document.getElementById('lobby-code').textContent = code;
+
+  const lockBadge = document.getElementById('lobby-lock-badge');
+  if (lockBadge) lockBadge.classList.toggle('hidden', !App.hasPassword);
 
   const grid = document.getElementById('lobby-players');
   grid.innerHTML = '';
@@ -609,10 +623,20 @@ App.socket.on('lobby:settings', settings => {
 });
 
 App.socket.on('notification', msg => toast(msg));
-App.socket.on('game:starting', () => showCountdown());
-App.socket.on('game:back_to_lobby', () => showView('lobby'));
+
+/** 统一清理三个棋/牌类游戏模块内的回合倒计时 interval */
+function stopGameTimers() {
+  TicTacToe.teardown();
+  Gomoku.teardown();
+  UNO.teardown();
+}
+
+// 离开对局视图/重开倒计时时清理各游戏模块的倒计时 interval，避免对隐藏 DOM 空转
+App.socket.on('game:starting', () => { stopGameTimers(); showCountdown(); });
+App.socket.on('game:back_to_lobby', () => { stopGameTimers(); showView('lobby'); });
 
 App.socket.on('room:kicked', () => {
+  stopGameTimers();
   showView('home');
   showLoading(false);
   toast('你被移出了房间。', 4000, 'error');

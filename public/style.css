@@ -253,7 +253,7 @@ button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 
 /* ============================================================
    INPUTS
    ============================================================ */
-input[type="text"], input[type="color"] {
+input[type="text"], input[type="password"], input[type="color"] {
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-300);
   color: var(--color-neutral-900);
@@ -262,8 +262,8 @@ input[type="text"], input[type="color"] {
   outline: none; width: 100%;
   transition: border-color var(--dur-fast) ease-out, box-shadow var(--dur-fast) ease-out;
 }
-input[type="text"]:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-ring); }
-input[type="text"]::placeholder { color: var(--color-neutral-400); }
+input[type="text"]:focus, input[type="password"]:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-ring); }
+input[type="text"]::placeholder, input[type="password"]::placeholder { color: var(--color-neutral-400); }
 input[type="range"] { accent-color: var(--color-primary); width: 100%; cursor: pointer; }
 
 /* ============================================================
@@ -1101,12 +1101,17 @@ input[type="range"] { accent-color: var(--color-primary); width: 100%; cursor: p
   transition: opacity var(--dur-fast) ease-out, background-color var(--dur-fast) ease-out;
 }
 .kd-kick-btn:hover, .scb-kick-btn:hover { opacity: 1; }
-.ttt-kick-btn {
+.ttt-kick-btn, .gk-kick-btn {
   font-size: var(--text-xs); padding: 2px var(--space-2); margin-top: var(--space-1);
   display: block; width: 100%; opacity: 0.45;
   transition: opacity var(--dur-fast) ease-out, background-color var(--dur-fast) ease-out;
 }
-.ttt-kick-btn:hover { opacity: 1; }
+.ttt-kick-btn:hover, .gk-kick-btn:hover { opacity: 1; }
+.uno-kick-btn {
+  font-size: var(--text-xs); padding: var(--space-1) var(--space-2); margin-top: var(--space-1); opacity: 0.45;
+  transition: opacity var(--dur-fast) ease-out, background-color var(--dur-fast) ease-out;
+}
+.uno-kick-btn:hover { opacity: 1; }
 
 /* ============================================================
    SESSION STATS

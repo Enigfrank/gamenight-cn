@@ -3,6 +3,41 @@ const UNO = (() => {
   let myHand = [];
   let drawnCardIndex = -1;
   const COLOR_NAMES = { red: '红色', yellow: '黄色', green: '绿色', blue: '蓝色', wild: '万能' };
+  let timerInterval = null;
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function getTimerSuffix() {
+    if (!state || state.phase === 'game_over' || !state.turnEndsAt || state.turnEndsAt <= 0) return '';
+    const rem = Math.max(0, Math.ceil((state.turnEndsAt - Date.now()) / 1000));
+    return rem > 0 ? ` (${rem}s)` : ' (超时托管中…)';
+  }
+
+  function updateStatusText() {
+    if (!state) return;
+    const isMyTurn = state.currentPlayerId === App.myId;
+    const phase = state.phase;
+    const statusEl = document.getElementById('uno-status');
+    if (!statusEl) return;
+    const timerStr = getTimerSuffix();
+
+    if (phase === 'choose_color') {
+      const chooser = state.players[state.currentPlayerId]?.name || '?';
+      statusEl.textContent = (isMyTurn ? '选一个颜色……' : `${chooser} 正在选颜色……`) + timerStr;
+      statusEl.style.color = '';
+    } else if (isMyTurn) {
+      statusEl.textContent = (state.awaitingPass ? '打出刚摸的牌，或者选择过' : '轮到你了！') + timerStr;
+      statusEl.style.color = 'var(--green)';
+    } else {
+      statusEl.textContent = `轮到 ${state.players[state.currentPlayerId]?.name || '?'} 出牌` + timerStr;
+      statusEl.style.color = '';
+    }
+  }
 
   // ─── Init ───────────────────────────────────────────────────
 
@@ -55,6 +90,7 @@ const UNO = (() => {
   }
 
   function onGameOver({ winnerId, winnerName, scores, players }) {
+    stopTimer();
     document.getElementById('uno-gameover-title').textContent =
       winnerId === App.myId ? '你赢啦！🎉' : `${winnerName} 赢啦！`;
 
@@ -84,17 +120,9 @@ const UNO = (() => {
     const isMyTurn = state.currentPlayerId === App.myId;
     const phase = state.phase;
 
-    const statusEl = document.getElementById('uno-status');
-    if (phase === 'choose_color') {
-      const chooser = state.players[state.currentPlayerId]?.name || '?';
-      statusEl.textContent = isMyTurn ? '选一个颜色……' : `${chooser} 正在选颜色……`;
-      statusEl.style.color = '';
-    } else if (isMyTurn) {
-      statusEl.textContent = state.awaitingPass ? '打出刚摸的牌，或者选择过' : '轮到你了！';
-      statusEl.style.color = 'var(--green)';
-    } else {
-      statusEl.textContent = `轮到 ${state.players[state.currentPlayerId]?.name || '?'} 出牌`;
-      statusEl.style.color = '';
+    updateStatusText();
+    if (!timerInterval && state.turnEndsAt > 0 && phase !== 'game_over') {
+      timerInterval = setInterval(updateStatusText, 1000);
     }
 
     renderDiscardCard();
@@ -170,6 +198,19 @@ const UNO = (() => {
       div.appendChild(nameRow);
       div.appendChild(cardsRow);
       div.appendChild(countLabel);
+
+      if (App.isHost) {
+        const kickBtn = document.createElement('button');
+        kickBtn.className = 'btn-host-ctrl btn-kick-ctrl uno-kick-btn';
+        kickBtn.title = `踢出 ${player?.name || '玩家'}`;
+        kickBtn.textContent = '🚫 踢出';
+        kickBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showConfirm(`把 ${player?.name || '该玩家'} 踢出房间？`, () => App.socket.emit('room:kick', { playerId: id }), { confirmText: '踢出', danger: true });
+        });
+        div.appendChild(kickBtn);
+      }
+
       el.appendChild(div);
     });
   }
@@ -226,5 +267,5 @@ const UNO = (() => {
 
   function isDigit(v) { return v >= '0' && v <= '9'; }
 
-  return { init, onState, onHand, onChooseColor, onGameOver };
+  return { init, onState, onHand, onChooseColor, onGameOver, teardown: stopTimer };
 })();
